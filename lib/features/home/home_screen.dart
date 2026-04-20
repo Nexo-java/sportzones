@@ -54,16 +54,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       'this year\'s Australian Open, could only manage to secure two games.';
 
   static List<NewsModel> _initialLatestNews() {
-    return List.generate(
-      10,
-      (_) => NewsModel(
-        title: 'Tim Judo Indonesia Bawa Pulang 4 Emas, Lampaui Target di SEA Games 2025',
-        category: 'Judo',
-        date: '16/12/2025',
+    return [
+      NewsModel(
+        title: 'Lin Chun Yi Lolos ke Final India Open 2026 usai Menang Dramatis',
+        category: 'Badminton',
+        date: '20/01/2026',
         description: _defaultDescription,
         imageUrl: 'https://via.placeholder.com/150',
       ),
-    );
+      NewsModel(
+        title: 'Anthony Ginting Bangkit dan Menang Dua Gim Langsung di Malaysia Open',
+        category: 'Badminton',
+        date: '22/01/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+      NewsModel(
+        title: 'Indonesia U-23 Tahan Imbang Jepang dalam Laga Uji Coba Intens',
+        category: 'Soccer',
+        date: '25/01/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+      NewsModel(
+        title: 'Persija Menang Tipis 1-0 Lewat Gol Menit Akhir di Liga 1',
+        category: 'Soccer',
+        date: '28/01/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+      NewsModel(
+        title: 'Tim Basket Indonesia Raih Kemenangan Besar di Kualifikasi Asia',
+        category: 'Basketball',
+        date: '30/01/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+      NewsModel(
+        title: 'Pemain Muda NBA Keturunan Asia Catat Triple-Double Perdana',
+        category: 'Basketball',
+        date: '01/02/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+      NewsModel(
+        title: 'Tim Volly Putri Indonesia Menang Comeback 3-2 di Final Regional',
+        category: 'Volly',
+        date: '03/02/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+      NewsModel(
+        title: 'Smash Cepat Bawa Klub Surabaya Juara Seri Pembuka Proliga',
+        category: 'Volly',
+        date: '05/02/2026',
+        description: _defaultDescription,
+        imageUrl: 'https://via.placeholder.com/150',
+      ),
+    ];
   }
 
   @override

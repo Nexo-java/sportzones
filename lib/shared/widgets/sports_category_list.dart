@@ -115,10 +115,10 @@ class _SportsCategoryListState extends State<SportsCategoryList> {
                           category.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.black,
                             fontSize: 16,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
                             height: 1,
                           ),
                         ),

@@ -3,24 +3,20 @@ import 'package:flutter/material.dart';
 import '../models/news_model.dart';
 import 'latest_news_card.dart';
 
-typedef LatestNewsTap = void Function({
-  required String title,
-  required String date,
-  required String imageUrl,
-  required String description,
-  required String category,
-});
+typedef LatestNewsTap = void Function(NewsModel newsItem);
 
 class LatestNewsSection extends StatelessWidget {
   const LatestNewsSection({
     super.key,
     required this.newsItems,
     this.onNewsTap,
+    this.showHeader = true,
   });
 
   static const double _horizontalInset = 16;
   final List<NewsModel> newsItems;
   final LatestNewsTap? onNewsTap;
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -29,25 +25,27 @@ class LatestNewsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.article_outlined,
-                color: Colors.white,
-                size: 20,
-              ),
-              SizedBox(width: 6),
-              Text(
-                'Latest News',
-                style: TextStyle(
+          if (showHeader) ...[
+            const Row(
+              children: [
+                Icon(
+                  Icons.article_outlined,
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  size: 22,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                SizedBox(width: 6),
+                Text(
+                  'Latest News',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           Column(
             children: List.generate(newsItems.length, (index) {
               final item = newsItems[index];
@@ -57,13 +55,7 @@ class LatestNewsSection extends StatelessWidget {
                 date: item.date,
                 imageUrl: item.imageUrl,
                 onTap: () {
-                  onNewsTap?.call(
-                    title: item.title,
-                    date: item.date,
-                    imageUrl: item.imageUrl,
-                    description: item.description,
-                    category: item.category,
-                  );
+                  onNewsTap?.call(item);
                 },
               );
             }),

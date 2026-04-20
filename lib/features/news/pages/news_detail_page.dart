@@ -11,22 +11,29 @@ import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/top_success_banner.dart';
 
 class NewsDetailPage extends StatefulWidget {
-  const NewsDetailPage({
+  NewsDetailPage({
     super.key,
     required this.imageUrl,
     required this.title,
     required this.description,
     required this.date,
     this.category = '',
+    this.createdBy = 'Admin',
+    DateTime? createdAt,
+    DateTime? updatedAt,
     this.initialBottomTabIndex = 0,
     this.isAdmin = false,
-  });
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? createdAt ?? DateTime.now();
 
   final String imageUrl;
   final String title;
   final String description;
   final String date;
   final String category;
+  final String createdBy;
+  final DateTime createdAt;
+  final DateTime updatedAt;
   final int initialBottomTabIndex;
   final bool isAdmin;
 
@@ -49,10 +56,13 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   Color _actionBannerColor = const Color(0xFF6FA437);
   final BookmarkService _bookmarkService = BookmarkService();
   late final String _itemId;
+  late DateTime _now;
+  Timer? _relativeTimeTimer;
 
   @override
   void initState() {
     super.initState();
+    _now = DateTime.now();
     _currentBottomTab = widget.initialBottomTabIndex.clamp(0, 3);
     _paragraphs = widget.description
         .split('\n\n')
@@ -76,12 +86,37 @@ class _NewsDetailPageState extends State<NewsDetailPage>
         reverseCurve: Curves.easeInCubic,
       ),
     );
+
+    _relativeTimeTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      setState(() {
+        _now = DateTime.now();
+      });
+    });
   }
 
   @override
   void dispose() {
+    _relativeTimeTimer?.cancel();
     _actionBannerController.dispose();
     super.dispose();
+  }
+
+  String _formatRelativeTime(DateTime updatedAt) {
+    final diff = _now.difference(updatedAt);
+    if (diff.isNegative || diff < const Duration(minutes: 1)) {
+      return 'Just now';
+    }
+    if (diff < const Duration(hours: 1)) {
+      final minutes = diff.inMinutes;
+      return '$minutes minute${minutes == 1 ? '' : 's'} ago';
+    }
+    if (diff < const Duration(days: 1)) {
+      final hours = diff.inHours;
+      return '$hours hour${hours == 1 ? '' : 's'} ago';
+    }
+    final days = diff.inDays;
+    return '$days day${days == 1 ? '' : 's'} ago';
   }
 
   void _onBottomNavTap(int index) {
@@ -159,6 +194,9 @@ class _NewsDetailPageState extends State<NewsDetailPage>
             date: widget.date,
             description: widget.description,
             imageUrl: widget.imageUrl,
+            createdBy: widget.createdBy,
+            createdAt: widget.createdAt,
+            updatedAt: widget.updatedAt,
           ),
           pageTitle: 'Edit News',
           headerTitle: 'Update News Story',
@@ -241,6 +279,8 @@ class _NewsDetailPageState extends State<NewsDetailPage>
 
   @override
   Widget build(BuildContext context) {
+    final relativeUpdateText = _formatRelativeTime(widget.updatedAt);
+
     return Scaffold(
       backgroundColor: _pageBg,
       body: Stack(
@@ -425,8 +465,9 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                           if (_paragraphs.isEmpty)
                             Text(
                               widget.description,
+                              textAlign: TextAlign.justify,
                               style: const TextStyle(
-                                color: Colors.white70,
+                                color: Colors.white,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
                                 height: 1.7,
@@ -442,8 +483,9 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 ),
                                 child: Text(
                                   _paragraphs[index],
+                                  textAlign: TextAlign.justify,
                                   style: const TextStyle(
-                                    color: Colors.white70,
+                                    color: Colors.white,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
                                     height: 1.7,
@@ -451,6 +493,24 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 ),
                               );
                             }),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Last Update $relativeUpdateText',
+                            style: const TextStyle(
+                              color: Color(0xFFAAAAAA),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Posted by: ${widget.createdBy}',
+                            style: const TextStyle(
+                              color: Color(0xFFAAAAAA),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           const SizedBox(height: 24),
                         ],
                       ),

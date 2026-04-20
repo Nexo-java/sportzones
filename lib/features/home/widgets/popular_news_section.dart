@@ -41,14 +41,14 @@ class PopularNewsSection extends StatelessWidget {
               Icon(
                 Icons.whatshot,
                 color: Colors.white,
-                size: 20,
+                size: 22,
               ),
               SizedBox(width: 6),
               Text(
                 'Popular News',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),

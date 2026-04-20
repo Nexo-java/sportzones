@@ -29,7 +29,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int? _selectedCategoryIndex;
-  bool _isCategoryPage = false;
   bool _isOpeningDetail = false;
   final PageController _hotNewsPageController = PageController();
   Timer? _hotNewsAutoSlideTimer;
@@ -94,7 +93,6 @@ class _HomePageState extends State<HomePage> {
     if (oldWidget.homeResetCounter != widget.homeResetCounter) {
       setState(() {
         _selectedCategoryIndex = null;
-        _isCategoryPage = false;
       });
     }
   }
@@ -104,7 +102,6 @@ class _HomePageState extends State<HomePage> {
     if (index >= 0) {
       setState(() {
         _selectedCategoryIndex = index;
-        _isCategoryPage = true;
       });
     }
   }
@@ -115,6 +112,9 @@ class _HomePageState extends State<HomePage> {
     required String imageUrl,
     required String description,
     required String category,
+    String createdBy = 'Admin',
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
     if (_isOpeningDetail) return;
     _isOpeningDetail = true;
@@ -137,6 +137,9 @@ class _HomePageState extends State<HomePage> {
           description: description,
           date: date,
           category: category,
+          createdBy: createdBy,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
           initialBottomTabIndex: 0,
           isAdmin: widget.isAdmin,
         ),
@@ -248,12 +251,19 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     SportsCategory? selectedCategory;
     final selectedIndex = _selectedCategoryIndex;
-    if (_isCategoryPage &&
-        selectedIndex != null &&
+    if (selectedIndex != null &&
         selectedIndex >= 0 &&
         selectedIndex < SportsCategoryList.categories.length) {
       selectedCategory = SportsCategoryList.categories[selectedIndex];
     }
+    final filteredNews = selectedCategory == null
+        ? widget.latestNews
+        : widget.latestNews
+              .where(
+                (item) =>
+                    item.category.trim().toLowerCase() == selectedCategory!.name.toLowerCase(),
+              )
+              .toList(growable: false);
     final topPadding = MediaQuery.paddingOf(context).top;
     final headerHeight = topPadding + 65;
 
@@ -283,61 +293,76 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          if (selectedCategory == null)
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  _buildHotNewsCarousel(),
-                  const SizedBox(height: 24),
-                  PopularNewsSection(
-                    onNewsTap: ({required title, required date, imageUrl}) {
-                      _openNewsDetail(
-                        title: title,
-                        date: date,
-                        imageUrl: imageUrl ?? '',
-                        description: _popularNewsDescription,
-                        category: 'Popular',
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  LatestNewsSection(
-                    newsItems: widget.latestNews,
-                    onNewsTap: ({required title, required date, required imageUrl, required description, required category}) {
-                      _openNewsDetail(
-                        title: title,
-                        date: date,
-                        imageUrl: imageUrl,
-                        description: description,
-                        category: category,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            )
-          else
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: Center(
-                  key: ValueKey(selectedCategory.name),
-                  child: Text(
-                    '${selectedCategory.name} Page',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
+          SliverToBoxAdapter(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              child: selectedCategory == null
+                  ? Column(
+                      key: const ValueKey('home-all-news'),
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildHotNewsCarousel(),
+                        const SizedBox(height: 24),
+                        PopularNewsSection(
+                          onNewsTap: ({required title, required date, imageUrl}) {
+                            _openNewsDetail(
+                              title: title,
+                              date: date,
+                              imageUrl: imageUrl ?? '',
+                              description: _popularNewsDescription,
+                              category: 'Popular',
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 1),
+                        LatestNewsSection(
+                          newsItems: filteredNews,
+                          onNewsTap: (newsItem) {
+                            _openNewsDetail(
+                              title: newsItem.title,
+                              date: newsItem.date,
+                              imageUrl: newsItem.imageUrl,
+                              description: newsItem.description,
+                              category: newsItem.category,
+                              createdBy: newsItem.createdBy,
+                              createdAt: newsItem.createdAt,
+                              updatedAt: newsItem.updatedAt,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    )
+                  : Column(
+                      key: ValueKey('home-category-${selectedCategory.name}'),
+                      children: [
+                        const SizedBox(height: 16),
+                        LatestNewsSection(
+                          newsItems: filteredNews,
+                          showHeader: false,
+                          onNewsTap: (newsItem) {
+                            _openNewsDetail(
+                              title: newsItem.title,
+                              date: newsItem.date,
+                              imageUrl: newsItem.imageUrl,
+                              description: newsItem.description,
+                              category: newsItem.category,
+                              createdBy: newsItem.createdBy,
+                              createdAt: newsItem.createdAt,
+                              updatedAt: newsItem.updatedAt,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                     ),
-                  ),
-                ),
-              ),
             ),
+          ),
         ],
       ),
     );

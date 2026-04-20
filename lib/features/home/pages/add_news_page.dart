@@ -37,6 +37,7 @@ class _AddNewsPageState extends State<AddNewsPage>
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _dateController = TextEditingController();
+  final _authorController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _imageUrlController = TextEditingController();
 
@@ -50,6 +51,45 @@ class _AddNewsPageState extends State<AddNewsPage>
     'Tennis',
   ];
 
+  String _normalizeImageUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null) return trimmed;
+
+    // Convert common Google Drive share links into direct-view links.
+    if (uri.host.contains('drive.google.com')) {
+      final idFromQuery = uri.queryParameters['id'];
+      if (idFromQuery != null && idFromQuery.isNotEmpty) {
+        return 'https://drive.google.com/uc?export=view&id=$idFromQuery';
+      }
+
+      final segments = uri.pathSegments;
+      final fileIndex = segments.indexOf('d');
+      if (fileIndex != -1 && fileIndex + 1 < segments.length) {
+        final fileId = segments[fileIndex + 1];
+        return 'https://drive.google.com/uc?export=view&id=$fileId';
+      }
+    }
+
+    // Convert Dropbox shared link into raw image link.
+    if (uri.host.contains('dropbox.com')) {
+      final updatedQuery = Map<String, String>.from(uri.queryParameters)
+        ..['raw'] = '1';
+      return uri.replace(queryParameters: updatedQuery).toString();
+    }
+
+    return trimmed;
+  }
+
+  bool _isValidImageUrl(String rawUrl) {
+    final normalized = _normalizeImageUrl(rawUrl);
+    final uri = Uri.tryParse(normalized);
+    return uri != null &&
+        uri.hasScheme &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +97,7 @@ class _AddNewsPageState extends State<AddNewsPage>
     if (initialNews != null) {
       _titleController.text = initialNews.title;
       _dateController.text = initialNews.date;
+      _authorController.text = initialNews.createdBy;
       _descriptionController.text = initialNews.description;
       _imageUrlController.text = initialNews.imageUrl;
       _selectedCategory = _categories.contains(initialNews.category)
@@ -68,6 +109,7 @@ class _AddNewsPageState extends State<AddNewsPage>
       final month = now.month.toString().padLeft(2, '0');
       final year = now.year.toString();
       _dateController.text = '$day/$month/$year';
+      _authorController.text = 'Admin';
     }
 
     _entryController = AnimationController(
@@ -98,6 +140,7 @@ class _AddNewsPageState extends State<AddNewsPage>
     _entryController.dispose();
     _titleController.dispose();
     _dateController.dispose();
+    _authorController.dispose();
     _descriptionController.dispose();
     _imageUrlController.dispose();
     super.dispose();
@@ -117,12 +160,21 @@ class _AddNewsPageState extends State<AddNewsPage>
       return;
     }
 
+    final now = DateTime.now();
+    final initialNews = widget.initialNews;
+    final normalizedImageUrl = _normalizeImageUrl(_imageUrlController.text.trim());
+
     final news = NewsModel(
       title: _titleController.text.trim(),
       category: selectedCategory,
       date: _dateController.text.trim(),
+      createdBy: _authorController.text.trim().isEmpty
+          ? 'Admin'
+          : _authorController.text.trim(),
+      createdAt: initialNews?.createdAt ?? now,
+      updatedAt: now,
       description: _descriptionController.text.trim(),
-      imageUrl: _imageUrlController.text.trim(),
+      imageUrl: normalizedImageUrl,
     );
 
     Navigator.pop(context, news);
@@ -318,6 +370,16 @@ class _AddNewsPageState extends State<AddNewsPage>
                             },
                           ),
                           const SizedBox(height: 14),
+                          _fieldLabel('Author / Created By'),
+                          TextFormField(
+                            controller: _authorController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: _inputDecoration(
+                              'Admin',
+                              icon: Icons.person_outline_rounded,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
                           _fieldLabel('Description'),
                           TextFormField(
                             controller: _descriptionController,
@@ -347,6 +409,9 @@ class _AddNewsPageState extends State<AddNewsPage>
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Image URL is required';
+                              }
+                              if (!_isValidImageUrl(value)) {
+                                return 'Use a valid image link (http/https)';
                               }
                               return null;
                             },
