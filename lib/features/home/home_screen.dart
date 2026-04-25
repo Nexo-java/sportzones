@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../shared/widgets/top_success_banner.dart';
 import '../../services/bookmark_service.dart';
+import '../../services/notification_service.dart';
 import 'models/news_model.dart';
 import 'pages/home_page.dart';
 import 'pages/add_news_page.dart';
@@ -219,6 +220,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _latestNews.insert(0, newNews);
     });
+
+    NotificationService.instance.addFromNews(newNews);
 
     await _showNewsAddedSuccessBanner();
   }

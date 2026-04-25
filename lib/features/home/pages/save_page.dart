@@ -4,6 +4,7 @@ import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../notification/pages/notification_page.dart';
 
 class SavePage extends StatefulWidget {
   const SavePage({super.key});
@@ -43,6 +44,27 @@ class _SavePageState extends State<SavePage> {
     );
   }
 
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 240),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0, end: 1).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookmarks = _bookmarkService.bookmarks;
@@ -51,7 +73,7 @@ class _SavePageState extends State<SavePage> {
       color: const Color(0xFF09092D),
       child: Column(
         children: [
-          const CustomHeader(),
+          CustomHeader(onNotificationTap: _openNotifications),
           Expanded(
             child: bookmarks.isEmpty
                 ? EmptyState(

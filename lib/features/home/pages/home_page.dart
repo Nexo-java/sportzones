@@ -6,6 +6,7 @@ import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/sports_category_list.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../news/pages/news_detail_page.dart';
+import '../../notification/pages/notification_page.dart';
 import '../models/news_model.dart';
 import '../widgets/hot_news_card.dart';
 import '../widgets/latest_news_section.dart';
@@ -104,6 +105,27 @@ class _HomePageState extends State<HomePage> {
         _selectedCategoryIndex = index;
       });
     }
+  }
+
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 240),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0, end: 1).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _openNewsDetail({
@@ -275,7 +297,7 @@ class _HomePageState extends State<HomePage> {
             pinned: true,
             delegate: _PinnedSectionDelegate(
               height: headerHeight,
-              child: const CustomHeader(),
+              child: CustomHeader(onNotificationTap: _openNotifications),
             ),
           ),
           SliverPersistentHeader(

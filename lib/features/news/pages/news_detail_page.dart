@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../home/home_screen.dart';
 import '../../home/models/news_model.dart';
 import '../../home/pages/add_news_page.dart';
+import '../../notification/pages/notification_page.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../shared/widgets/custom_bottom_navbar.dart';
 import '../../../shared/widgets/custom_header.dart';
@@ -239,6 +240,27 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     Navigator.of(context).pop({'action': 'updated', 'news': updatedNews});
   }
 
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 240),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0, end: 1).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _showActionBannerWith({
     required String text,
     required Color backgroundColor,
@@ -290,7 +312,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
             bottom: false,
             child: Column(
               children: [
-                const CustomHeader(),
+                CustomHeader(onNotificationTap: _openNotifications),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
