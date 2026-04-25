@@ -1,16 +1,29 @@
-# sportzones
+# 🏆 SportZone - Global Sports News App
 
-A new Flutter project.
+SportZone adalah aplikasi mobile berbasis **Flutter** yang menyajikan berita olahraga terkini secara cepat dan terpercaya. Proyek ini dikembangkan oleh **DevMuda Studio** sebagai bagian dari tugas kejuruan (PPLG).
 
-## Getting Started
+## 🚀 Fitur Utama
+* **Hot News & Popular News**: Menampilkan berita olahraga terbaru dan paling banyak dibaca.
+* **News Categories**: Filter berita berdasarkan cabang olahraga (Sepak Bola, Basket, Balap, dll).
+* **Integrated Admin System**: Admin dapat menambah, mengedit, dan menghapus berita langsung dari dalam aplikasi.
+* **Save/Bookmark**: Pengguna dapat menyimpan berita favorit untuk dibaca nanti secara offline.
+* **Search Function**: Mencari berita olahraga spesifik dengan cepat.
 
-This project is a starting point for a Flutter application.
+## 🛠️ Tech Stack
+* **Frontend**: Flutter (Dart)
+* **Backend & Database**: Firebase (Firestore, Authentication, Storage)
+* **Design Tools**: Figma & Adobe Illustrator
 
-A few resources to get you started if this is your first Flutter project:
+## 📊 Arsitektur Sistem
+Proyek ini mencakup dokumentasi teknis yang matang:
+1.  **Customer Journey Map**: Memetakan pengalaman user dari membuka aplikasi hingga membaca berita.
+2.  **ERD & Class Diagram**: Struktur database dan logika pemrograman yang terorganisir.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 👥 Tim Pengembang (DevMuda Studio)
+* **[Nexo]** - Lead Developer & UI/UX Designer
+* [Yef] - Backend Developer
+* [Lutver] - Quality Assurance
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+> "The best way to predict the future is to create it."
