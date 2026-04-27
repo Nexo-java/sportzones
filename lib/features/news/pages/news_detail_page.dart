@@ -7,6 +7,7 @@ import '../../home/models/news_model.dart';
 import '../../home/pages/add_news_page.dart';
 import '../../notification/pages/notification_page.dart';
 import '../../../services/bookmark_service.dart';
+import '../../../services/user_service.dart';
 import '../../../shared/widgets/custom_bottom_navbar.dart';
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/top_success_banner.dart';
@@ -23,7 +24,6 @@ class NewsDetailPage extends StatefulWidget {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.initialBottomTabIndex = 0,
-    this.isAdmin = false,
   }) : createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? createdAt ?? DateTime.now();
 
@@ -36,7 +36,6 @@ class NewsDetailPage extends StatefulWidget {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int initialBottomTabIndex;
-  final bool isAdmin;
 
   @override
   State<NewsDetailPage> createState() => _NewsDetailPageState();
@@ -128,7 +127,28 @@ class _NewsDetailPageState extends State<NewsDetailPage>
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(initialIndex: index),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curve),
+              child: child,
+            ),
+          );
+        },
+      ),
       (route) => false,
     );
   }
@@ -353,7 +373,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 ),
                               ),
                               const Spacer(),
-                              if (widget.isAdmin) ...[
+                              if (UserService.instance.isAdmin) ...[
                                 PopupMenuButton<String>(
                                   color: const Color(0xFF1A1A40),
                                   icon: const Icon(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../shared/widgets/top_success_banner.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/user_service.dart';
 import 'models/news_model.dart';
 import 'pages/home_page.dart';
 import 'pages/add_news_page.dart';
@@ -17,12 +18,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.initialIndex = 0,
-    this.isAdmin = false,
     this.animateOnEntry = false,
   });
 
   final int initialIndex;
-  final bool isAdmin;
   final bool animateOnEntry;
 
   @override
@@ -272,17 +271,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final bookmarkCount = BookmarkService().bookmarks.length;
+    final isAdmin = UserService.instance.isAdmin;
 
     final pages = [
       HomePage(
         key: ValueKey('home-reset-$_homeResetCounter'),
         homeResetCounter: _homeResetCounter,
         latestNews: _latestNews,
-        isAdmin: widget.isAdmin,
       ),
-      SearchPage(isAdmin: widget.isAdmin),
-      const SavePage(),
+      const SearchPage(key: ValueKey('search-page')),
+      const SavePage(key: ValueKey('save-page')),
       ProfilePage(
+        key: const ValueKey('profile-page'),
         bookmarkCount: bookmarkCount,
         onOpenBookmarks: () => _onTabChanged(2),
       ),
@@ -296,9 +296,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           opacity: _entryFadeAnimation,
           child: Stack(
             children: [
-              IndexedStack(
-                index: _currentIndex,
-                children: pages,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeIn,
+                switchOutCurve: Curves.easeOut,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                child: pages[_currentIndex],
               ),
               if (_showNewsAddedBanner)
                 Positioned(
@@ -321,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
-      floatingActionButton: widget.isAdmin && _currentIndex == 0
+      floatingActionButton: isAdmin && _currentIndex == 0
           ? FloatingActionButton(
               onPressed: _openAddNewsForm,
               backgroundColor: Colors.white,

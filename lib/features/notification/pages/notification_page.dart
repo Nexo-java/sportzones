@@ -83,8 +83,10 @@ class _NotificationPageState extends State<NotificationPage>
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => NewsDetailPage(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) => NewsDetailPage(
           imageUrl: item.imageUrl,
           title: item.title,
           description: item.description,
@@ -94,6 +96,23 @@ class _NotificationPageState extends State<NotificationPage>
           updatedAt: item.timestamp,
           initialBottomTabIndex: 0,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curve),
+              child: child,
+            ),
+          );
+        },
       ),
     );
   }

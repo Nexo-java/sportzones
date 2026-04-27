@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../home/home_screen.dart';
 import '../../../shared/widgets/top_success_banner.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -143,10 +144,12 @@ class _LoginScreenState extends State<LoginScreen>
 
       final isAdmin = _emailController.text.trim().toLowerCase() == 'admin';
 
+      // Set the user role in the global UserService
+      UserService.instance.setRole(isAdmin);
+
       await Navigator.of(context).pushReplacement(
         _createHomeRevealTransition(
-          HomeScreen(
-            isAdmin: isAdmin,
+          const HomeScreen(
             animateOnEntry: true,
           ),
         ),

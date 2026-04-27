@@ -17,12 +17,10 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.homeResetCounter,
     required this.latestNews,
-    this.isAdmin = false,
   });
 
   final int homeResetCounter;
   final List<NewsModel> latestNews;
-  final bool isAdmin;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -163,7 +161,6 @@ class _HomePageState extends State<HomePage> {
           createdAt: createdAt,
           updatedAt: updatedAt,
           initialBottomTabIndex: 0,
-          isAdmin: widget.isAdmin,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curve = CurvedAnimation(

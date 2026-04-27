@@ -9,10 +9,7 @@ import '../../../shared/widgets/custom_header.dart';
 class SearchPage extends StatefulWidget {
   const SearchPage({
     super.key,
-    this.isAdmin = false,
   });
-
-  final bool isAdmin;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -274,8 +271,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => NewsDetailPage(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) => NewsDetailPage(
           imageUrl: item['image'] ?? '',
           title: item['title'] ?? '',
           description: item['description'] ?? '',
@@ -284,8 +283,24 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
           createdBy: item['createdBy'] ?? 'Admin',
           updatedAt: parsedUpdatedAt,
           initialBottomTabIndex: 1,
-          isAdmin: widget.isAdmin,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curve),
+              child: child,
+            ),
+          );
+        },
       ),
     );
   }
