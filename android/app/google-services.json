@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "9139867107",
+    "project_id": "sportzones-1267b",
+    "storage_bucket": "sportzones-1267b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9139867107:android:725d786310eddf5f8ba4d6",
+        "android_client_info": {
+          "package_name": "com.example.sportzones"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAo_n-3gHFc64MzGriyTuEhxym5-cAm_OE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
