@@ -39,7 +39,9 @@ class _AddNewsPageState extends State<AddNewsPage>
   final _dateController = TextEditingController();
   final _authorController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _contentController = TextEditingController(); // isi_konten
   final _imageUrlController = TextEditingController();
+  final _mapsUrlController = TextEditingController(); // optional maps_url
 
   String? _selectedCategory;
 
@@ -142,7 +144,9 @@ class _AddNewsPageState extends State<AddNewsPage>
     _dateController.dispose();
     _authorController.dispose();
     _descriptionController.dispose();
+    _contentController.dispose();
     _imageUrlController.dispose();
+    _mapsUrlController.dispose();
     super.dispose();
   }
 
@@ -160,21 +164,28 @@ class _AddNewsPageState extends State<AddNewsPage>
       return;
     }
 
-    final now = DateTime.now();
     final initialNews = widget.initialNews;
     final normalizedImageUrl = _normalizeImageUrl(_imageUrlController.text.trim());
+    final normalizedMapsUrl = _mapsUrlController.text.trim().isEmpty
+        ? null
+        : _normalizeImageUrl(_mapsUrlController.text.trim());
 
-    final news = NewsModel(
-      title: _titleController.text.trim(),
-      category: selectedCategory,
-      date: _dateController.text.trim(),
+    // Generate unique ID for new news or use existing ID for editing
+    final newsId = initialNews?.idBerita ?? 'news_${DateTime.now().millisecondsSinceEpoch}';
+
+    final news = NewsModel.tambahData(
+      idBerita: newsId,
+      judul: _titleController.text.trim(),
+      deskripsi: _descriptionController.text.trim(),
+      isiKonten: _contentController.text.trim().isEmpty
+          ? _descriptionController.text.trim()
+          : _contentController.text.trim(),
+      imgUrl: normalizedImageUrl,
+      kategori: selectedCategory,
       createdBy: _authorController.text.trim().isEmpty
           ? 'Admin'
           : _authorController.text.trim(),
-      createdAt: initialNews?.createdAt ?? now,
-      updatedAt: now,
-      description: _descriptionController.text.trim(),
-      imageUrl: normalizedImageUrl,
+      mapsUrl: normalizedMapsUrl,
     );
 
     Navigator.pop(context, news);

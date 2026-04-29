@@ -4,6 +4,8 @@ import '../../home/home_screen.dart';
 import '../../../shared/widgets/top_success_banner.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../services/user_service.dart';
+import '../../../services/user_repository.dart';
+import '../../../services/firebase_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -124,6 +126,88 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  Future<void> _handleRegisterPressed() async {
+    if (_isLoginProcessing) return;
+
+    // Validate inputs
+    final username = _usernameController.text.trim();
+    final email = _regEmailController.text.trim();
+    final password = _regPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua field harus diisi')),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password tidak sesuai')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoginProcessing = true;
+      _showSuccessBanner = true;
+    });
+
+    try {
+      await _successBannerController.forward();
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+
+      if (!mounted) return;
+
+      // Register with Firebase
+      final registerError = await FirebaseAuthService.instance.registerWithEmail(
+        email: email,
+        password: password,
+        username: username,
+      );
+
+      if (registerError != null) {
+        if (!mounted) return;
+        _successBannerController.reset();
+        setState(() {
+          _showSuccessBanner = false;
+          _isLoginProcessing = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(registerError)),
+        );
+        return;
+      }
+
+      // Clear form
+      _usernameController.clear();
+      _regEmailController.clear();
+      _regPasswordController.clear();
+      _confirmPasswordController.clear();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Register berhasil! Silakan login.')),
+      );
+
+      // Switch to login tab
+      setState(() {
+        _isLogin = true;
+        _showSuccessBanner = false;
+        _isLoginProcessing = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      _successBannerController.reset();
+      setState(() {
+        _showSuccessBanner = false;
+        _isLoginProcessing = false;
+      });
+    }
+  }
+
   Future<void> _handleLoginPressed() async {
     if (_isLoginProcessing) return;
 
@@ -138,14 +222,44 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (!mounted) return;
 
+      // Get credentials from form
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      // Attempt login using Firebase Authentication
+      final loginSuccess = await FirebaseAuthService.instance.loginWithEmail(
+        email: email,
+        password: password,
+      );
+
+      if (!loginSuccess) {
+        if (!mounted) return;
+        _successBannerController.reset();
+        _loginExitController.reset();
+        setState(() {
+          _showSuccessBanner = false;
+          _isLoginProcessing = false;
+        });
+        
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Login gagal. Username atau password salah.')),
+          );
+        }
+        return;
+      }
+
       await _loginExitController.forward();
 
       if (!mounted) return;
 
-      final isAdmin = _emailController.text.trim().toLowerCase() == 'admin';
-
-      // Set the user role in the global UserService
-      UserService.instance.setRole(isAdmin);
+      // Get the logged-in user from UserRepository (synced by FirebaseAuthService)
+      final loggedInUser = UserRepository.instance.getCurrentUser();
+      if (loggedInUser != null) {
+        // Set admin status based on user role
+        UserService.instance.setRole(loggedInUser.role == 'admin');
+      }
 
       await Navigator.of(context).pushReplacement(
         _createHomeRevealTransition(
@@ -780,9 +894,7 @@ class _LoginScreenState extends State<LoginScreen>
                 SizedBox(height: compact ? 36 : 52),
         formItem(
           ElevatedButton(
-            onPressed: () {
-              // Handle register
-            },
+            onPressed: _isLoginProcessing ? null : _handleRegisterPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF09092D),
               minimumSize: const Size(double.infinity, 46),

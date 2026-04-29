@@ -6,6 +6,7 @@ import '../../shared/widgets/top_success_banner.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/user_service.dart';
+import '../../services/news_repository.dart';
 import 'models/news_model.dart';
 import 'pages/home_page.dart';
 import 'pages/add_news_page.dart';
@@ -40,85 +41,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       const AlwaysStoppedAnimation<Offset>(Offset.zero);
   bool _showNewsAddedBanner = false;
 
-  static const _defaultDescription =
-      'Indonesian Tennis Star Janice Tjen Upsets Leylah Fernandez at Australian Open\n\n'
-      'Janice Tjen has once again knocked out a seeded player in her Grand Slam campaign. '
-      'After defeating Veronika Kudermetova at the 2025 US Open, Tjen has now stunned \n\n'
-      'Canada\'s Leylah Fernandez.\n\n'
-      'Fernandez, a former US Open finalist in 2021, fell to Tjen in straight sets with a '
-      'score of 6-2, 7-6 (7-1). The match took place at the ANZ Arena, Melbourne Park, '
-      'Australia, on Tuesday (Jan 20, 2026).\n\n'
-      'Tjen dominated the first set against Fernandez, an opponent who has twice reached a '
-      'Grand Slam final. Sporting an all-green outfit, Tjen delivered an impressive '
-      'performance, securing six games early on. Meanwhile, Fernandez, the 22nd seed in '
-      'this year\'s Australian Open, could only manage to secure two games.';
-
-  static List<NewsModel> _initialLatestNews() {
-    return [
-      NewsModel(
-        title: 'Lin Chun Yi Lolos ke Final India Open 2026 usai Menang Dramatis',
-        category: 'Badminton',
-        date: '20/01/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Anthony Ginting Bangkit dan Menang Dua Gim Langsung di Malaysia Open',
-        category: 'Badminton',
-        date: '22/01/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Indonesia U-23 Tahan Imbang Jepang dalam Laga Uji Coba Intens',
-        category: 'Soccer',
-        date: '25/01/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Persija Menang Tipis 1-0 Lewat Gol Menit Akhir di Liga 1',
-        category: 'Soccer',
-        date: '28/01/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Tim Basket Indonesia Raih Kemenangan Besar di Kualifikasi Asia',
-        category: 'Basketball',
-        date: '30/01/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Pemain Muda NBA Keturunan Asia Catat Triple-Double Perdana',
-        category: 'Basketball',
-        date: '01/02/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Tim Volly Putri Indonesia Menang Comeback 3-2 di Final Regional',
-        category: 'Volly',
-        date: '03/02/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-      NewsModel(
-        title: 'Smash Cepat Bawa Klub Surabaya Juara Seri Pembuka Proliga',
-        category: 'Volly',
-        date: '05/02/2026',
-        description: _defaultDescription,
-        imageUrl: 'https://via.placeholder.com/150',
-      ),
-    ];
-  }
-
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex.clamp(0, 3);
-    _latestNews = _initialLatestNews();
+    
+    // Initialize news repository with sample data
+    NewsRepository.instance.initializeSampleData();
+    _latestNews = NewsRepository.instance.lihatData();
 
     _newsAddedBannerController = AnimationController(
       duration: const Duration(milliseconds: 820),
@@ -216,8 +146,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
 
+    // Add news to repository
+    NewsRepository.instance.tambahData(newNews);
+    
+    // Update local list
     setState(() {
-      _latestNews.insert(0, newNews);
+      _latestNews = NewsRepository.instance.lihatData();
     });
 
     NotificationService.instance.addFromNews(newNews);

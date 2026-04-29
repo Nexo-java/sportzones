@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import '../../core/utils/responsive_layout.dart';
+import '../../../services/user_repository.dart';
+import '../authentication/models/user_model.dart';
 
 import '../authentication/screens/splash_screen.dart';
 import '../../shared/widgets/custom_header.dart';
@@ -22,11 +24,33 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  _ProfileData _profileData = const _ProfileData(
-    username: 'hendrik Timang',
-    email: 'hendriktimangpky@gmail.com',
-    photoUrl: '',
-  );
+  late UserModel _currentUser;
+  late _ProfileData _profileData;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeUserData();
+  }
+
+  void _initializeUserData() {
+    final user = UserRepository.instance.getCurrentUser();
+    if (user != null) {
+      _currentUser = user;
+      _profileData = _ProfileData(
+        username: user.username,
+        email: user.email,
+        photoUrl: user.imageUrl,
+      );
+    } else {
+      // Fallback if no user is logged in
+      _profileData = const _ProfileData(
+        username: 'hendrik Timang',
+        email: 'hendriktimangpky@gmail.com',
+        photoUrl: '',
+      );
+    }
+  }
 
   Future<void> _openEditProfile() async {
     final updatedData = await Navigator.push<_ProfileData>(
@@ -61,8 +85,19 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
+    // Update profile in repository
+    if (_currentUser.idUser.isNotEmpty) {
+      UserRepository.instance.ubahData(
+        userId: _currentUser.idUser,
+        username: updatedData.username,
+        email: updatedData.email,
+        imgUrl: updatedData.photoUrl,
+      );
+    }
+
     setState(() {
       _profileData = updatedData;
+      _initializeUserData(); // Refresh with updated data
     });
   }
 
