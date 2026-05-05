@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../features/home/models/news_model.dart';
+import '../features/authentication/models/news_model.dart';
 
 class AppNotificationItem {
   AppNotificationItem({
@@ -119,7 +119,7 @@ class NotificationService {
     ];
   }
 
-  void addFromNews(NewsModel news, {DateTime? timestamp}) {
+  void addFromNews(SportModel news, {DateTime? timestamp}) {
     final nextNotification = AppNotificationItem(
       id: '${news.title}_${DateTime.now().microsecondsSinceEpoch}',
       title: news.title,

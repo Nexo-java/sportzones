@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/news_model.dart';
+import '../../authentication/models/news_model.dart';
 import 'latest_news_card.dart';
 
-typedef LatestNewsTap = void Function(NewsModel newsItem);
+typedef LatestNewsTap = void Function(SportModel newsItem);
 
 class LatestNewsSection extends StatelessWidget {
   const LatestNewsSection({
@@ -14,7 +14,7 @@ class LatestNewsSection extends StatelessWidget {
   });
 
   static const double _horizontalInset = 16;
-  final List<NewsModel> newsItems;
+  final List<SportModel> newsItems;
   final LatestNewsTap? onNewsTap;
   final bool showHeader;
 
@@ -50,6 +50,7 @@ class LatestNewsSection extends StatelessWidget {
             children: List.generate(newsItems.length, (index) {
               final item = newsItems[index];
               return LatestNewsCard(
+                newsId: item.idBerita,
                 title: item.title,
                 category: item.category,
                 date: item.date,

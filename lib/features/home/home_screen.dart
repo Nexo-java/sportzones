@@ -1,13 +1,13 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/widgets/top_success_banner.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/user_service.dart';
-import '../../services/news_repository.dart';
-import 'models/news_model.dart';
+import '../authentication/models/news_model.dart';
 import 'pages/home_page.dart';
 import 'pages/add_news_page.dart';
 import 'pages/save_page.dart';
@@ -30,9 +30,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late int _currentIndex;
   int _homeResetCounter = 0;
-  late final List<NewsModel> _latestNews;
+  List<SportModel> _latestNews = [];
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newsSubscription;
   late final AnimationController _newsAddedBannerController;
   late final Animation<Offset> _newsAddedBannerAnimation;
   late final AnimationController _entryFadeController;
@@ -45,10 +47,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex.clamp(0, 3);
-    
-    // Initialize news repository with sample data
-    NewsRepository.instance.initializeSampleData();
-    _latestNews = NewsRepository.instance.lihatData();
+
+    _newsSubscription = _firestore.collection('berita').snapshots().listen(
+      (snapshot) {
+        if (!mounted) return;
+
+        final remoteNews = snapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              data['id_berita'] = data['id_berita'] ?? doc.id;
+              return SportModel.fromJson(data);
+            })
+            .toList(growable: false)
+          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+        setState(() {
+          _latestNews = remoteNews;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _latestNews = [];
+        });
+      },
+    );
 
     _newsAddedBannerController = AnimationController(
       duration: const Duration(milliseconds: 820),
@@ -97,9 +120,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _newsSubscription?.cancel();
     _newsAddedBannerController.dispose();
     _entryFadeController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _saveNewsToFirestore(SportModel news) async {
+    try {
+      await _firestore.collection('berita').doc(news.idBerita).set(
+            news.toMap(),
+            SetOptions(merge: true),
+          );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _showNewsAddedSuccessBanner() async {
@@ -137,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openAddNewsForm() async {
-    final newNews = await Navigator.push<NewsModel>(
+    final newNews = await Navigator.push<SportModel>(
       context,
       _buildAddNewsRoute(),
     );
@@ -146,12 +182,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
 
-    // Add news to repository
-    NewsRepository.instance.tambahData(newNews);
-    
-    // Update local list
+    final saved = await _saveNewsToFirestore(newNews);
+
+    if (!saved) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal menyimpan berita ke Firebase')),
+      );
+      return;
+    }
+
     setState(() {
-      _latestNews = NewsRepository.instance.lihatData();
+      final existingIndex = _latestNews.indexWhere((item) => item.idBerita == newNews.idBerita);
+      if (existingIndex >= 0) {
+        _latestNews[existingIndex] = newNews;
+      } else {
+        _latestNews = [newNews, ..._latestNews];
+      }
     });
 
     NotificationService.instance.addFromNews(newNews);
@@ -159,8 +206,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _showNewsAddedSuccessBanner();
   }
 
-  PageRoute<NewsModel> _buildAddNewsRoute() {
-    return PageRouteBuilder<NewsModel>(
+  PageRoute<SportModel> _buildAddNewsRoute() {
+    return PageRouteBuilder<SportModel>(
       transitionDuration: const Duration(milliseconds: 300),
       reverseTransitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (context, animation, secondaryAnimation) => const AddNewsPage(),

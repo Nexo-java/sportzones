@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../home/home_screen.dart';
-import '../../home/models/news_model.dart';
+import '../../authentication/models/news_model.dart';
 import '../../home/pages/add_news_page.dart';
 import '../../notification/pages/notification_page.dart';
+import '../../../services/like_repository.dart';
+import '../../../services/user_repository.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../services/user_service.dart';
 import '../../../shared/widgets/custom_bottom_navbar.dart';
@@ -15,6 +18,7 @@ import '../../../shared/widgets/top_success_banner.dart';
 class NewsDetailPage extends StatefulWidget {
   NewsDetailPage({
     super.key,
+    this.newsId,
     required this.imageUrl,
     required this.title,
     required this.description,
@@ -27,6 +31,7 @@ class NewsDetailPage extends StatefulWidget {
   }) : createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? createdAt ?? DateTime.now();
 
+  final String? newsId;
   final String imageUrl;
   final String title;
   final String description;
@@ -55,6 +60,8 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   String _actionBannerText = '';
   Color _actionBannerColor = const Color(0xFF6FA437);
   final BookmarkService _bookmarkService = BookmarkService();
+  final LikeRepository _likeRepository = LikeRepository.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final String _itemId;
   late DateTime _now;
   Timer? _relativeTimeTimer;
@@ -69,8 +76,15 @@ class _NewsDetailPageState extends State<NewsDetailPage>
         .where((text) => text.trim().isNotEmpty)
         .toList(growable: false);
 
-    _itemId = '${widget.title}_${widget.date}'.hashCode.toString();
+    _itemId = widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
     _isSaved = _bookmarkService.isBookmarked(_itemId);
+    final currentUser = UserRepository.instance.getCurrentUser();
+    if (currentUser != null) {
+      _isLoved = _likeRepository.isNewsLikedByUser(
+        idUser: currentUser.idUser,
+        idBerita: _itemId,
+      );
+    }
 
     _actionBannerController = AnimationController(
       duration: const Duration(milliseconds: 820),
@@ -190,6 +204,16 @@ class _NewsDetailPageState extends State<NewsDetailPage>
       return;
     }
 
+    try {
+      await _firestore.collection('berita').doc(_itemId).delete();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal menghapus berita di Firebase')),
+      );
+      return;
+    }
+
     await _showActionBannerWith(
       text: 'Berhasil dihapus',
       backgroundColor: const Color(0xFFD94242),
@@ -203,20 +227,19 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   }
 
   Future<void> _onEditPressed() async {
-    final updatedNews = await Navigator.push<NewsModel>(
+    final updatedNews = await Navigator.push<SportModel>(
       context,
-      PageRouteBuilder<NewsModel>(
+      PageRouteBuilder<SportModel>(
         transitionDuration: const Duration(milliseconds: 300),
         reverseTransitionDuration: const Duration(milliseconds: 220),
         pageBuilder: (context, animation, secondaryAnimation) => AddNewsPage(
-          initialNews: NewsModel(
-            idBerita: 'news_${DateTime.now().millisecondsSinceEpoch}',
+          initialNews: SportModel(
+            idBerita: _itemId,
             judul: widget.title,
             deskripsi: widget.description,
             isiKonten: widget.description,
             imgUrl: widget.imageUrl,
             kategori: widget.category.isEmpty ? 'Badminton' : widget.category,
-            likesCount: 0,
             createdAt: widget.createdAt,
             updatedAt: widget.updatedAt,
             createdBy: widget.createdBy,
@@ -247,6 +270,19 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     );
 
     if (updatedNews == null || !mounted) {
+      return;
+    }
+
+    try {
+      await _firestore.collection('berita').doc(_itemId).set(
+            updatedNews.toMap(),
+            SetOptions(merge: true),
+          );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal update berita di Firebase')),
+      );
       return;
     }
 
@@ -422,8 +458,33 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                               ],
                               InkWell(
                                 onTap: () {
+                                  final currentUser = UserRepository.instance.getCurrentUser();
+                                  if (currentUser == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Silakan login terlebih dahulu')),
+                                    );
+                                    return;
+                                  }
+
                                   setState(() {
-                                    _isLoved = !_isLoved;
+                                    final liked = _likeRepository.isNewsLikedByUser(
+                                      idUser: currentUser.idUser,
+                                      idBerita: _itemId,
+                                    );
+
+                                    if (liked) {
+                                      _likeRepository.hapusData(
+                                        idUser: currentUser.idUser,
+                                        idBerita: _itemId,
+                                      );
+                                    } else {
+                                      _likeRepository.tambahData(
+                                        idUser: currentUser.idUser,
+                                        idBerita: _itemId,
+                                      );
+                                    }
+
+                                    _isLoved = !liked;
                                   });
                                 },
                                 borderRadius: BorderRadius.circular(18),

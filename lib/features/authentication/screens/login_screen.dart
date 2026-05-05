@@ -38,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isLogin = true;
   bool _showSuccessBanner = false;
   bool _isLoginProcessing = false;
+  String _successBannerText = 'Login Berhasil';
 
   static const _formPanelColor = Color(0xFFF2F2F5);
   static const _formInputColor = Color(0xFFF7F7FA);
@@ -152,6 +153,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() {
       _isLoginProcessing = true;
       _showSuccessBanner = true;
+      _successBannerText = 'Account created successfully';
     });
 
     try {
@@ -173,6 +175,7 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() {
           _showSuccessBanner = false;
           _isLoginProcessing = false;
+          _successBannerText = 'Login Berhasil';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -188,15 +191,12 @@ class _LoginScreenState extends State<LoginScreen>
       _confirmPasswordController.clear();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Register berhasil! Silakan login.')),
-      );
-
       // Switch to login tab
       setState(() {
         _isLogin = true;
         _showSuccessBanner = false;
         _isLoginProcessing = false;
+        _successBannerText = 'Login Berhasil';
       });
     } catch (_) {
       if (!mounted) return;
@@ -204,6 +204,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() {
         _showSuccessBanner = false;
         _isLoginProcessing = false;
+        _successBannerText = 'Login Berhasil';
       });
     }
   }
@@ -214,6 +215,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() {
       _isLoginProcessing = true;
       _showSuccessBanner = true;
+      _successBannerText = 'Login Berhasil';
     });
 
     try {
@@ -239,6 +241,7 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() {
           _showSuccessBanner = false;
           _isLoginProcessing = false;
+          _successBannerText = 'Login Berhasil';
         });
         
         // Show error message
@@ -275,6 +278,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() {
         _showSuccessBanner = false;
         _isLoginProcessing = false;
+        _successBannerText = 'Login Berhasil';
       });
     }
   }
@@ -430,6 +434,7 @@ class _LoginScreenState extends State<LoginScreen>
               child: IgnorePointer(
                 child: TopSuccessBanner(
                   animation: _successBannerSlideAnimation,
+                    text: _successBannerText,
                   maxWidth: 260,
                   height: 60,
                   fontSize: 17,
@@ -897,22 +902,34 @@ class _LoginScreenState extends State<LoginScreen>
             onPressed: _isLoginProcessing ? null : _handleRegisterPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF09092D),
-              minimumSize: const Size(double.infinity, 46),
-              padding: const EdgeInsets.symmetric(vertical: 18),
+              disabledBackgroundColor: const Color(0xFF09092D).withValues(alpha: 0.6),
+              minimumSize: const Size(double.infinity, 66),
+              padding: const EdgeInsets.symmetric(vertical: 21),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 0,
             ),
-            child: const Text(
-              'Register',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+            child: _isLoginProcessing
+              ? SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.white.withValues(alpha: 0.8),
+                  ),
+                  strokeWidth: 2.5,
+                ),
+              )
+              : const Text(
+                'Register',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
               ),
-            ),
           ),
         ),
         SizedBox(height: compact ? 2 : 6),

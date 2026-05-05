@@ -12,12 +12,12 @@ class AuthResponse {
     this.user,
   });
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+  factory AuthResponse.fromJson(Map<String, dynamic> map) {
     return AuthResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      token: json['token'],
-      user: json['user'],
+      success: map['success'] ?? false,
+      message: map['message'],
+      token: map['token'],
+      user: map['user'],
     );
   }
 }

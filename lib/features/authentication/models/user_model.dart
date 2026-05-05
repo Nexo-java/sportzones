@@ -136,8 +136,8 @@ class UserModel {
     );
   }
 
-  /// Convert to JSON (for future backend integration)
-  Map<String, dynamic> toJson() {
+  
+  Map<String, dynamic> toMap() {
     return {
       'id_user': idUser,
       'username': username,

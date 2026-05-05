@@ -12,17 +12,17 @@ class BaseResponse<T> {
     this.errors,
   });
 
-  factory BaseResponse.fromJson(
-    Map<String, dynamic> json,
-    T Function(dynamic)? fromJsonT,
+  factory BaseResponse.fromMap(
+    Map<String, dynamic> map,
+    T Function(dynamic)? fromMapT,
   ) {
     return BaseResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      data: json['data'] != null && fromJsonT != null
-          ? fromJsonT(json['data'])
+      success: map['success'] ?? false,
+      message: map['message'],
+      data: map['data'] != null && fromMapT != null
+          ? fromMapT(map['data'])
           : null,
-      errors: json['errors'],
+      errors: map['errors'],
     );
   }
 }

@@ -34,6 +34,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   final List<Map<String, String>> _dummyNews = const [
     {
+      'id': 'search-1',
       'title': 'Lin chun Yi wins india open 2026 Against Jonathan Cristie',
       'category': 'Badminton',
       'date': '19/20/2023',
@@ -43,6 +44,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-19T09:30:00.000',
     },
     {
+      'id': 'search-2',
       'title': 'Tim Judo Indonesia Bawa Pulang 4 Emas, Lampaui Target di SEA Games 2025',
       'category': 'Judo',
       'date': '16/12/2025',
@@ -52,6 +54,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-18T12:00:00.000',
     },
     {
+      'id': 'search-3',
       'title': 'Manchester is red! Manchester is back with big momentum',
       'category': 'Soccer',
       'date': '12/01/01',
@@ -61,6 +64,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-17T15:00:00.000',
     },
     {
+      'id': 'search-4',
       'title': 'Indonesia has already for Indonesia in this major event',
       'category': 'Badminton',
       'date': '12/01/02',
@@ -70,6 +74,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-17T18:20:00.000',
     },
     {
+      'id': 'search-5',
       'title': 'Brazil keeps pushing after dramatic late comeback win',
       'category': 'Soccer',
       'date': '12/01/03',
@@ -79,6 +84,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-16T08:05:00.000',
     },
     {
+      'id': 'search-6',
       'title': 'The derby turns chaotic after a stunning extra-time goal',
       'category': 'Soccer',
       'date': '12/01/04',
@@ -88,6 +94,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-15T19:40:00.000',
     },
     {
+      'id': 'search-7',
       'title': 'Final set thriller ends with unbelievable rally sequence',
       'category': 'Tennis',
       'date': '12/01/05',
@@ -97,6 +104,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-15T09:00:00.000',
     },
     {
+      'id': 'search-8',
       'title': 'New strategy changes the game for underdog contenders',
       'category': 'Basketball',
       'date': '12/01/06',
@@ -106,6 +114,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       'updatedAt': '2026-04-14T16:10:00.000',
     },
     {
+      'id': 'search-9',
       'title': 'Captain returns and instantly changes team chemistry',
       'category': 'Volly',
       'date': '12/01/07',
@@ -275,6 +284,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
         transitionDuration: const Duration(milliseconds: 220),
         reverseTransitionDuration: const Duration(milliseconds: 180),
         pageBuilder: (context, animation, secondaryAnimation) => NewsDetailPage(
+          newsId: item['id'],
           imageUrl: item['image'] ?? '',
           title: item['title'] ?? '',
           description: item['description'] ?? '',
@@ -512,6 +522,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                 else
                                   ..._searchResults.map((item) {
                                     return LatestNewsCard(
+                                      newsId: item['id'],
                                       title: item['title'] ?? '',
                                       category: item['category'] ?? '',
                                       date: item['date'] ?? '',

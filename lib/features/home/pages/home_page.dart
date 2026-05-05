@@ -7,7 +7,7 @@ import '../../../shared/widgets/sports_category_list.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../news/pages/news_detail_page.dart';
 import '../../notification/pages/notification_page.dart';
-import '../models/news_model.dart';
+import '../../authentication/models/news_model.dart';
 import '../widgets/hot_news_card.dart';
 import '../widgets/latest_news_section.dart';
 import '../widgets/popular_news_section.dart';
@@ -20,7 +20,7 @@ class HomePage extends StatefulWidget {
   });
 
   final int homeResetCounter;
-  final List<NewsModel> latestNews;
+  final List<SportModel> latestNews;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -127,6 +127,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _openNewsDetail({
+    String? newsId,
     required String title,
     required String date,
     required String imageUrl,
@@ -146,12 +147,15 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    final resolvedNewsId = newsId ?? '$title|$date'.hashCode.toString();
+
     final result = await Navigator.push<dynamic>(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 220),
         reverseTransitionDuration: const Duration(milliseconds: 180),
         pageBuilder: (context, animation, secondaryAnimation) => NewsDetailPage(
+          newsId: resolvedNewsId,
           imageUrl: imageUrl,
           title: title,
           description: description,
@@ -184,18 +188,16 @@ class _HomePageState extends State<HomePage> {
 
     if (result == true && mounted) {
       setState(() {
-        widget.latestNews.removeWhere(
-          (item) => item.title == title && item.date == date,
-        );
+        widget.latestNews.removeWhere((item) => item.idBerita == resolvedNewsId);
       });
     } else if (result is Map &&
         result['action'] == 'updated' &&
-        result['news'] is NewsModel &&
+        result['news'] is SportModel &&
         mounted) {
-      final updatedNews = result['news'] as NewsModel;
+      final updatedNews = result['news'] as SportModel;
       setState(() {
         final index = widget.latestNews.indexWhere(
-          (item) => item.title == title && item.date == date,
+          (item) => item.idBerita == resolvedNewsId,
         );
         if (index >= 0) {
           widget.latestNews[index] = updatedNews;
@@ -343,6 +345,7 @@ class _HomePageState extends State<HomePage> {
                           newsItems: filteredNews,
                           onNewsTap: (newsItem) {
                             _openNewsDetail(
+                              newsId: newsItem.idBerita,
                               title: newsItem.title,
                               date: newsItem.date,
                               imageUrl: newsItem.imageUrl,
@@ -366,6 +369,7 @@ class _HomePageState extends State<HomePage> {
                           showHeader: false,
                           onNewsTap: (newsItem) {
                             _openNewsDetail(
+                              newsId: newsItem.idBerita,
                               title: newsItem.title,
                               date: newsItem.date,
                               imageUrl: newsItem.imageUrl,

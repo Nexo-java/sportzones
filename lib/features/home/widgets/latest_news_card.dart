@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../services/like_repository.dart';
+import '../../../services/user_repository.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../core/utils/responsive_layout.dart';
 
 class LatestNewsCard extends StatefulWidget {
   const LatestNewsCard({
     super.key,
+    this.newsId,
     required this.title,
     required this.category,
     required this.date,
@@ -12,6 +15,7 @@ class LatestNewsCard extends StatefulWidget {
     this.onTap,
   });
 
+  final String? newsId;
   final String title;
   final String category;
   final String date;
@@ -26,6 +30,7 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
   bool _isLiked = false;
   bool _isSaved = false;
   final BookmarkService _bookmarkService = BookmarkService();
+  final LikeRepository _likeRepository = LikeRepository.instance;
 
   late String _itemId;
 
@@ -33,8 +38,15 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
   void initState() {
     super.initState();
     // Create a unique ID based on title and date
-    _itemId = '${widget.title}_${widget.date}'.hashCode.toString();
+    _itemId = widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
     _isSaved = _bookmarkService.isBookmarked(_itemId);
+    final currentUser = UserRepository.instance.getCurrentUser();
+    if (currentUser != null) {
+      _isLiked = _likeRepository.isNewsLikedByUser(
+        idUser: currentUser.idUser,
+        idBerita: _itemId,
+      );
+    }
   }
 
   Widget _actionIcon({
@@ -194,8 +206,33 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                           icon: _isLiked ? Icons.favorite : Icons.favorite_border,
                           color: _isLiked ? const Color(0xFFFF5F5F) : Colors.white,
                           onTap: () {
+                            final currentUser = UserRepository.instance.getCurrentUser();
+                            if (currentUser == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Silakan login terlebih dahulu')),
+                              );
+                              return;
+                            }
+
                             setState(() {
-                              _isLiked = !_isLiked;
+                              final liked = _likeRepository.isNewsLikedByUser(
+                                idUser: currentUser.idUser,
+                                idBerita: _itemId,
+                              );
+
+                              if (liked) {
+                                _likeRepository.hapusData(
+                                  idUser: currentUser.idUser,
+                                  idBerita: _itemId,
+                                );
+                              } else {
+                                _likeRepository.tambahData(
+                                  idUser: currentUser.idUser,
+                                  idBerita: _itemId,
+                                );
+                              }
+
+                              _isLiked = !liked;
                             });
                           },
                         ),

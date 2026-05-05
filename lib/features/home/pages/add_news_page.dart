@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/news_model.dart';
+import '../../authentication/models/news_model.dart';
 
 class AddNewsPage extends StatefulWidget {
   const AddNewsPage({
@@ -12,7 +12,7 @@ class AddNewsPage extends StatefulWidget {
     this.submitButtonText = 'Publish News',
   });
 
-  final NewsModel? initialNews;
+  final SportModel? initialNews;
   final String pageTitle;
   final String headerTitle;
   final String headerSubtitle;
@@ -54,7 +54,13 @@ class _AddNewsPageState extends State<AddNewsPage>
   ];
 
   String _normalizeImageUrl(String rawUrl) {
-    final trimmed = rawUrl.trim();
+    var trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return trimmed;
+
+    if (!trimmed.contains('://')) {
+      trimmed = 'https://$trimmed';
+    }
+
     final uri = Uri.tryParse(trimmed);
     if (uri == null) return trimmed;
 
@@ -78,6 +84,13 @@ class _AddNewsPageState extends State<AddNewsPage>
       final updatedQuery = Map<String, String>.from(uri.queryParameters)
         ..['raw'] = '1';
       return uri.replace(queryParameters: updatedQuery).toString();
+    }
+
+    // Pinterest links can be stored as-is when they are already direct image URLs.
+    // If the user pastes a Pinterest page URL, we keep it so the next layer can
+    // attempt to render it without rejecting the form upfront.
+    if (uri.host.contains('pinterest.com') || uri.host.contains('pinimg.com')) {
+      return uri.toString();
     }
 
     return trimmed;
@@ -173,7 +186,7 @@ class _AddNewsPageState extends State<AddNewsPage>
     // Generate unique ID for new news or use existing ID for editing
     final newsId = initialNews?.idBerita ?? 'news_${DateTime.now().millisecondsSinceEpoch}';
 
-    final news = NewsModel.tambahData(
+    final news = SportModel.tambahData(
       idBerita: newsId,
       judul: _titleController.text.trim(),
       deskripsi: _descriptionController.text.trim(),
@@ -422,7 +435,7 @@ class _AddNewsPageState extends State<AddNewsPage>
                                 return 'Image URL is required';
                               }
                               if (!_isValidImageUrl(value)) {
-                                return 'Use a valid image link (http/https)';
+                                return 'Use a valid image link, Google Drive link, or Pinterest link';
                               }
                               return null;
                             },
