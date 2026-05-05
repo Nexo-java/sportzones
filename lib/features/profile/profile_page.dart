@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import '../../core/utils/responsive_layout.dart';
-import '../../../services/user_repository.dart';
+import '../../../services/user/user_repository.dart';
 import '../authentication/models/user_model.dart';
 
 import '../authentication/screens/splash_screen.dart';

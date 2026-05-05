@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../features/authentication/models/user_model.dart';
+import '../../features/authentication/models/user_model.dart';
 
 /// Repository for managing user data
 /// Implements user registration, authentication, and profile management

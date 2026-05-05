@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../features/authentication/models/user_model.dart';
-import 'user_repository.dart';
+import '../../features/authentication/models/user_model.dart';
+import '../user/user_repository.dart';
 
 /// Service untuk handle Firebase Authentication dan user data sync
 class FirebaseAuthService {

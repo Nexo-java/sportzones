@@ -44,8 +44,8 @@ class LikeModel {
     );
   }
 
-  factory LikeModel.fromJson(Map<String, dynamic> json) {
-    final dynamic rawCreatedAt = json['created_at'];
+  factory LikeModel.fromJson(Map<String, dynamic> map) {
+    final dynamic rawCreatedAt = map['created_at'];
     DateTime parsedCreatedAt;
     if (rawCreatedAt is Timestamp) {
       parsedCreatedAt = rawCreatedAt.toDate();
@@ -58,9 +58,9 @@ class LikeModel {
     }
 
     return LikeModel(
-      likeId: json['like_id'] ?? json['id'] ?? '',
-      idUser: json['id_user'] ?? '',
-      idBerita: json['id_berita'] ?? '',
+      likeId: map['like_id'] ?? map['id'] ?? '',
+      idUser: map['id_user'] ?? '',
+      idBerita: map['id_berita'] ?? '',
       createdAt: parsedCreatedAt,
     );
   }

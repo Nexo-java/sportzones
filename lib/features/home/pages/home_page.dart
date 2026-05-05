@@ -17,10 +17,12 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.homeResetCounter,
     required this.latestNews,
+    required this.notifications,
   });
 
   final int homeResetCounter;
   final List<SportModel> latestNews;
+  final ValueNotifier<List<Map<String, dynamic>>> notifications;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -105,13 +107,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _openNotifications() {
+  void _openNotifications(ValueNotifier<List<Map<String, dynamic>>> notifications) {
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 240),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        pageBuilder: (context, animation, secondaryAnimation) => NotificationPage(notifications: notifications),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
           return FadeTransition(
@@ -296,7 +298,9 @@ class _HomePageState extends State<HomePage> {
             pinned: true,
             delegate: _PinnedSectionDelegate(
               height: headerHeight,
-              child: CustomHeader(onNotificationTap: _openNotifications),
+              child: CustomHeader(
+                onNotificationTap: () => _openNotifications(widget.notifications),
+              ),
             ),
           ),
           SliverPersistentHeader(

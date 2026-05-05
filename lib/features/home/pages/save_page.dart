@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../services/bookmark_service.dart';
+import '../../../services/bookmark/bookmark_service.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../notification/pages/notification_page.dart';
 

@@ -7,10 +7,9 @@ import '../../home/home_screen.dart';
 import '../../authentication/models/news_model.dart';
 import '../../home/pages/add_news_page.dart';
 import '../../notification/pages/notification_page.dart';
-import '../../../services/like_repository.dart';
-import '../../../services/user_repository.dart';
-import '../../../services/bookmark_service.dart';
-import '../../../services/user_service.dart';
+import '../../../services/user/user_repository.dart';
+import '../../../services/bookmark/bookmark_service.dart';
+import '../../../services/user/user_service.dart';
 import '../../../shared/widgets/custom_bottom_navbar.dart';
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/top_success_banner.dart';
@@ -60,7 +59,6 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   String _actionBannerText = '';
   Color _actionBannerColor = const Color(0xFF6FA437);
   final BookmarkService _bookmarkService = BookmarkService();
-  final LikeRepository _likeRepository = LikeRepository.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final String _itemId;
   late DateTime _now;
@@ -78,13 +76,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
 
     _itemId = widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
     _isSaved = _bookmarkService.isBookmarked(_itemId);
-    final currentUser = UserRepository.instance.getCurrentUser();
-    if (currentUser != null) {
-      _isLoved = _likeRepository.isNewsLikedByUser(
-        idUser: currentUser.idUser,
-        idBerita: _itemId,
-      );
-    }
+    _checkIfLiked();
 
     _actionBannerController = AnimationController(
       duration: const Duration(milliseconds: 820),
@@ -114,6 +106,27 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     _relativeTimeTimer?.cancel();
     _actionBannerController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkIfLiked() async {
+    final currentUser = UserRepository.instance.getCurrentUser();
+    if (currentUser == null || !mounted) return;
+
+    final likeDocId = '${currentUser.idUser}_$_itemId';
+    try {
+      final doc = await _firestore.collection('likes').doc(likeDocId).get();
+      if (mounted) {
+        setState(() {
+          _isLoved = doc.exists;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoved = false;
+        });
+      }
+    }
   }
 
   String _formatRelativeTime(DateTime updatedAt) {
@@ -457,35 +470,43 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 const SizedBox(width: 14),
                               ],
                               InkWell(
-                                onTap: () {
+                                onTap: () async {
                                   final currentUser = UserRepository.instance.getCurrentUser();
                                   if (currentUser == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Silakan login terlebih dahulu')),
-                                    );
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Silakan login terlebih dahulu')),
+                                      );
+                                    }
                                     return;
                                   }
 
-                                  setState(() {
-                                    final liked = _likeRepository.isNewsLikedByUser(
-                                      idUser: currentUser.idUser,
-                                      idBerita: _itemId,
-                                    );
-
-                                    if (liked) {
-                                      _likeRepository.hapusData(
-                                        idUser: currentUser.idUser,
-                                        idBerita: _itemId,
-                                      );
+                                  final likeDocId = '${currentUser.idUser}_$_itemId';
+                                  try {
+                                    if (_isLoved) {
+                                      await _firestore.collection('likes').doc(likeDocId).delete();
                                     } else {
-                                      _likeRepository.tambahData(
-                                        idUser: currentUser.idUser,
-                                        idBerita: _itemId,
-                                      );
+                                      await _firestore.collection('likes').doc(likeDocId).set({
+                                        'id_user': currentUser.idUser,
+                                        'id_berita': _itemId,
+                                        'created_at': FieldValue.serverTimestamp(),
+                                      });
                                     }
 
-                                    _isLoved = !liked;
-                                  });
+                                    if (mounted) {
+                                      setState(() {
+                                        _isLoved = !_isLoved;
+                                      });
+                                    }
+                                  } catch (_) {
+                                    if (mounted) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Gagal update like')),
+                                        );
+                                      }
+                                    }
+                                  }
                                 },
                                 borderRadius: BorderRadius.circular(18),
                                 child: Padding(

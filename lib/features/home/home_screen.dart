@@ -4,9 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/widgets/top_success_banner.dart';
-import '../../services/bookmark_service.dart';
-import '../../services/notification_service.dart';
-import '../../services/user_service.dart';
+import '../../services/bookmark/bookmark_service.dart';
+import '../../services/user/user_service.dart';
 import '../authentication/models/news_model.dart';
 import 'pages/home_page.dart';
 import 'pages/add_news_page.dart';
@@ -42,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Animation<Offset> _entrySlideAnimation =
       const AlwaysStoppedAnimation<Offset>(Offset.zero);
   bool _showNewsAddedBanner = false;
+  final ValueNotifier<List<Map<String, dynamic>>> _notifications = ValueNotifier<List<Map<String, dynamic>>>([]);
 
   @override
   void initState() {
@@ -123,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _newsSubscription?.cancel();
     _newsAddedBannerController.dispose();
     _entryFadeController.dispose();
+    _notifications.dispose();
     super.dispose();
   }
 
@@ -136,6 +137,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (_) {
       return false;
     }
+  }
+
+  void _addNotification(SportModel news) {
+    final notif = {
+      'id': '${news.title}_${DateTime.now().microsecondsSinceEpoch}',
+      'title': news.title,
+      'category': news.category,
+      'timestamp': news.createdAt,
+      'imageUrl': news.imageUrl,
+      'description': news.description,
+      'date': news.date,
+      'createdBy': news.createdBy,
+      'isRead': false,
+    };
+
+    _notifications.value = [notif, ..._notifications.value];
   }
 
   Future<void> _showNewsAddedSuccessBanner() async {
@@ -201,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     });
 
-    NotificationService.instance.addFromNews(newNews);
+    _addNotification(newNews);
 
     await _showNewsAddedSuccessBanner();
   }
@@ -259,6 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         key: ValueKey('home-reset-$_homeResetCounter'),
         homeResetCounter: _homeResetCounter,
         latestNews: _latestNews,
+        notifications: _notifications,
       ),
       const SearchPage(key: ValueKey('search-page')),
       const SavePage(key: ValueKey('save-page')),
