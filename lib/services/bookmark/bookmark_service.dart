@@ -1,3 +1,6 @@
+import '../user/user_repository.dart';
+import '../auth/firebase_auth_service.dart';
+
 class NewsItem {
   final String id;
   final String title;
@@ -22,6 +25,7 @@ class NewsItem {
   int get hashCode => id.hashCode;
 }
 
+/// BookmarkService now stores bookmarks per-user to avoid cross-account sharing.
 class BookmarkService {
   static final BookmarkService _instance = BookmarkService._internal();
 
@@ -31,25 +35,68 @@ class BookmarkService {
 
   BookmarkService._internal();
 
-  final List<NewsItem> _bookmarks = [];
+  // Map userId -> bookmarks list
+  final Map<String, List<NewsItem>> _userBookmarks = {};
 
-  List<NewsItem> get bookmarks => List.unmodifiable(_bookmarks);
+  String _currentUserId() {
+    final user = UserRepository.instance.getCurrentUser();
+    return user?.idUser ?? '_guest';
+  }
 
-  void addBookmark(NewsItem item) {
-    if (!_bookmarks.any((b) => b.id == item.id)) {
-      _bookmarks.add(item);
+  /// Get bookmarks for current user (or empty list)
+  List<NewsItem> get bookmarks {
+    final uid = _currentUserId();
+    if (!_userBookmarks.containsKey(uid)) {
+      return const <NewsItem>[];
+    }
+
+    final currentBookmarks = _userBookmarks[uid];
+    if (currentBookmarks == null || currentBookmarks.isEmpty) {
+      return const <NewsItem>[];
+    }
+
+    return List<NewsItem>.unmodifiable(List<NewsItem>.from(currentBookmarks));
+  }
+
+  void addBookmark(NewsItem item, {String? forUserId}) {
+    final uid = forUserId ?? _currentUserId();
+    final list = _userBookmarks.putIfAbsent(uid, () => []);
+    if (!list.any((b) => b.id == item.id)) {
+      list.add(item);
+      // Update local user repository immediately
+      try {
+        UserRepository.instance.addSavedNews(uid, item.id);
+      } catch (_) {}
+      // Also persist to Firestore if possible (fire-and-forget)
+      try {
+        FirebaseAuthService.instance.addSavedNews(userId: uid, newsId: item.id);
+      } catch (_) {}
     }
   }
 
-  void removeBookmark(String id) {
-    _bookmarks.removeWhere((b) => b.id == id);
+  void removeBookmark(String id, {String? forUserId}) {
+    final uid = forUserId ?? _currentUserId();
+    final list = _userBookmarks[uid];
+    if (list == null) return;
+    list.removeWhere((b) => b.id == id);
+    // Update local repository and Firestore
+    try {
+      UserRepository.instance.removeSavedNews(uid, id);
+    } catch (_) {}
+    try {
+      FirebaseAuthService.instance.removeSavedNews(userId: uid, newsId: id);
+    } catch (_) {}
   }
 
-  bool isBookmarked(String id) {
-    return _bookmarks.any((b) => b.id == id);
+  bool isBookmarked(String id, {String? forUserId}) {
+    final uid = forUserId ?? _currentUserId();
+    final list = _userBookmarks[uid];
+    if (list == null) return false;
+    return list.any((b) => b.id == id);
   }
 
-  void clear() {
-    _bookmarks.clear();
+  void clear({String? forUserId}) {
+    final uid = forUserId ?? _currentUserId();
+    _userBookmarks[uid]?.clear();
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../services/user/user_repository.dart';
 import '../../../services/bookmark/bookmark_service.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../../shared/widgets/web_safe_network_image.dart';
 
 class LatestNewsCard extends StatefulWidget {
   const LatestNewsCard({
@@ -98,25 +99,9 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
         imageUrl: widget.imageUrl,
       );
       _bookmarkService.addBookmark(newsItem);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Added to bookmarks'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.grey.shade800,
-        ),
-      );
     } else {
       // Remove from bookmarks
       _bookmarkService.removeBookmark(_itemId);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Removed from bookmarks'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.grey.shade800,
-        ),
-      );
     }
   }
 
@@ -147,20 +132,9 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                 borderRadius: BorderRadius.circular(14),
                 child: SizedBox(
                   width: imageWidth,
-                  child: Image.network(
-                    widget.imageUrl,
+                    child: WebSafeNetworkImage(
+                      imageUrl: widget.imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFF4A4A6A),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.image,
-                          color: Colors.white38,
-                          size: 30,
-                        ),
-                      );
-                    },
                   ),
                 ),
               ),

@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/sports_category_list.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../news/pages/news_detail_page.dart';
 import '../../notification/pages/notification_page.dart';
+import '../../authentication/models/like_model.dart';
 import '../../authentication/models/news_model.dart';
 import '../widgets/hot_news_card.dart';
 import '../widgets/latest_news_section.dart';
@@ -32,54 +35,95 @@ class _HomePageState extends State<HomePage> {
   int? _selectedCategoryIndex;
   bool _isOpeningDetail = false;
   final PageController _hotNewsPageController = PageController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Timer? _hotNewsAutoSlideTimer;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _likesSubscription;
   int _hotNewsPageIndex = 0;
-
-  static const List<Map<String, String>> _hotNewsItems = [
-    {
-      'title': 'Lin chun Yi wins india open 2026 Against Jonathan Cristie',
-      'date': '19/20/2023',
-      'image': '',
-      'source': 'Sportzone',
-      'description': _hotNewsDescription,
-    },
-    {
-      'title': 'Anthony Ginting Returns in Style with Straight-Set Win at Malaysia Open',
-      'date': '22/01/2026',
-      'image': '',
-      'source': 'Sportzone',
-      'description': _hotNewsDescription2,
-    },
-    {
-      'title': 'Indonesia U-23 Holds Japan in Thrilling Match Ahead of Asian Cup Qualifiers',
-      'date': '25/01/2026',
-      'image': '',
-      'source': 'Sportzone',
-      'description': _hotNewsDescription3,
-    },
-  ];
+  Map<String, int> _likeCounts = const {};
 
   @override
   void initState() {
     super.initState();
+    _likesSubscription = _firestore.collection('likes').snapshots().listen(
+      (snapshot) {
+        if (!mounted) return;
+
+        final likes = snapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              data['like_id'] = data['like_id'] ?? doc.id;
+              return LikeModel.fromJson(data);
+            })
+            .where((like) => like.idBerita.isNotEmpty)
+            .toList(growable: false);
+
+        final counts = <String, int>{};
+        for (final like in likes) {
+          counts[like.idBerita] = (counts[like.idBerita] ?? 0) + 1;
+        }
+
+        setState(() {
+          _likeCounts = counts;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _likeCounts = const {};
+        });
+      },
+    );
     _startHotNewsAutoSlide();
   }
 
   @override
   void dispose() {
+    _likesSubscription?.cancel();
     _hotNewsAutoSlideTimer?.cancel();
     _hotNewsPageController.dispose();
     super.dispose();
   }
 
+  int _likesFor(SportModel news) => _likeCounts[news.idBerita] ?? 0;
+
+  List<SportModel> _hotNewsFromRealtime() {
+    if (widget.latestNews.isEmpty) return const [];
+
+    final newestFirst = List<SportModel>.from(widget.latestNews)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final recentWindow = newestFirst.take(12).toList(growable: false)
+      ..sort((a, b) {
+        final likeCompare = _likesFor(b).compareTo(_likesFor(a));
+        if (likeCompare != 0) return likeCompare;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return recentWindow.take(3).toList(growable: false);
+  }
+
+  List<SportModel> _popularNewsFromRealtime() {
+    if (widget.latestNews.isEmpty) return const [];
+
+    final ranked = List<SportModel>.from(widget.latestNews)
+      ..sort((a, b) {
+        final likeCompare = _likesFor(b).compareTo(_likesFor(a));
+        if (likeCompare != 0) return likeCompare;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return ranked.take(12).toList(growable: false);
+  }
+
   void _startHotNewsAutoSlide() {
     _hotNewsAutoSlideTimer?.cancel();
     _hotNewsAutoSlideTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_hotNewsPageController.hasClients || _hotNewsItems.isEmpty) {
+      final hotNews = _hotNewsFromRealtime();
+      if (!mounted || !_hotNewsPageController.hasClients || hotNews.isEmpty) {
         return;
       }
 
-      final nextPage = (_hotNewsPageIndex + 1) % _hotNewsItems.length;
+      final nextPage = (_hotNewsPageIndex + 1) % hotNews.length;
       _hotNewsPageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 420),
@@ -213,6 +257,10 @@ class _HomePageState extends State<HomePage> {
   Future<void> _warmUpImage(String imageUrl) async {
     if (imageUrl.isEmpty || !mounted) return;
 
+    if (kIsWeb) {
+      return;
+    }
+
     ImageProvider? provider;
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       provider = NetworkImage(imageUrl);
@@ -230,6 +278,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildHotNewsCarousel() {
+    final hotNews = _hotNewsFromRealtime();
+    if (hotNews.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    if (_hotNewsPageIndex >= hotNews.length) {
+      _hotNewsPageIndex = 0;
+    }
+
     final scale = ResponsiveLayout.scale(context, min: 0.9, max: 1.08);
     final carouselHeight = (300 * scale).clamp(260.0, 320.0).toDouble();
 
@@ -237,31 +294,30 @@ class _HomePageState extends State<HomePage> {
       height: carouselHeight,
       child: PageView.builder(
         controller: _hotNewsPageController,
-        itemCount: _hotNewsItems.length,
+        itemCount: hotNews.length,
         onPageChanged: (index) {
           _hotNewsPageIndex = index;
         },
         itemBuilder: (context, index) {
-          final item = _hotNewsItems[index];
-          final title = item['title'] ?? '';
-          final date = item['date'] ?? '';
-          final image = item['image'] ?? '';
-          final source = item['source'] ?? 'Sportzone';
-          final description = item['description'] ?? _hotNewsDescription;
+          final item = hotNews[index];
 
           return HotNewsCard(
-            title: title,
-            imageUrl: image,
-            date: date,
-            source: source,
+            title: item.title,
+            imageUrl: item.imageUrl,
+            date: item.date,
+            source: item.createdBy,
             height: carouselHeight,
             onTap: () {
               _openNewsDetail(
-                title: title,
-                date: date,
-                imageUrl: image,
-                description: description,
-                category: 'Hot News',
+                newsId: item.idBerita,
+                title: item.title,
+                date: item.date,
+                imageUrl: item.imageUrl,
+                description: item.description,
+                category: item.category,
+                createdBy: item.createdBy,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
               );
             },
           );
@@ -287,6 +343,7 @@ class _HomePageState extends State<HomePage> {
                     item.category.trim().toLowerCase() == selectedCategory!.name.toLowerCase(),
               )
               .toList(growable: false);
+          final popularNews = _popularNewsFromRealtime();
     final topPadding = MediaQuery.paddingOf(context).top;
     final headerHeight = topPadding + 65;
 
@@ -334,13 +391,18 @@ class _HomePageState extends State<HomePage> {
                         _buildHotNewsCarousel(),
                         const SizedBox(height: 24),
                         PopularNewsSection(
-                          onNewsTap: ({required title, required date, imageUrl}) {
+                          newsItems: popularNews,
+                          onNewsTap: (newsItem) {
                             _openNewsDetail(
-                              title: title,
-                              date: date,
-                              imageUrl: imageUrl ?? '',
-                              description: _popularNewsDescription,
-                              category: 'Popular',
+                              newsId: newsItem.idBerita,
+                              title: newsItem.title,
+                              date: newsItem.date,
+                              imageUrl: newsItem.imageUrl,
+                              description: newsItem.description,
+                              category: newsItem.category,
+                              createdBy: newsItem.createdBy,
+                              createdAt: newsItem.createdAt,
+                              updatedAt: newsItem.updatedAt,
                             );
                           },
                         ),
@@ -395,38 +457,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-const _hotNewsDescription =
-  'Lin Chun Yi delivered a standout performance at the India Open 2026, defeating '
-  'Jonathan Christie in a high-pressure clash.\n\n'
-  'From the opening rally, Lin controlled the pace with sharp net play and quick '
-  'transitions, forcing errors from his opponent.\n\n'
-  'The result confirms Lin\'s rising form this season and strengthens his position '
-  'ahead of the next Super Series tournament.';
-
-const _hotNewsDescription2 =
-  'Anthony Ginting marked his comeback with confidence at the Malaysia Open 2026, '
-  'closing the match in two straight sets against a tough top-20 opponent.\n\n'
-  'He controlled tempo from the baseline and punished short returns, showing strong '
-  'rhythm after months of recovery.\n\n'
-  'The win boosts Indonesia\'s campaign and signals that Ginting is ready for the '
-  'next major tournaments this season.';
-
-const _hotNewsDescription3 =
-  'Indonesia U-23 delivered a composed performance to hold Japan in a dramatic '
-  'friendly match before Asian Cup qualifiers.\n\n'
-  'The team defended compactly and launched quick counters, creating several big '
-  'chances in the second half.\n\n'
-  'Coaches praised the squad\'s discipline and chemistry, calling it a strong '
-  'foundation for the qualification phase.';
-
-const _popularNewsDescription =
-  'This popular story captures one of the most discussed moments in today\'s sports '
-  'headline cycle.\n\n'
-  'With strong reactions from fans and analysts, the matchup has quickly become a '
-  'trending topic across multiple platforms.\n\n'
-  'More updates are expected as teams release official statements and post-match '
-  'analysis.';
 
 class _PinnedSectionDelegate extends SliverPersistentHeaderDelegate {
   _PinnedSectionDelegate({

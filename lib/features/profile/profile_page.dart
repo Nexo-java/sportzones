@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/utils/responsive_layout.dart';
 import '../../../services/user/user_repository.dart';
 import '../authentication/models/user_model.dart';
+import '../../shared/widgets/web_safe_network_image.dart';
 
 import '../authentication/screens/splash_screen.dart';
 import '../../shared/widgets/custom_header.dart';
@@ -250,27 +251,14 @@ class _Avatar extends StatelessWidget {
       );
     }
 
-    return ClipOval(
-      child: Image.network(
-        photoUrl.trim(),
+      return ClipOval(
+        child: WebSafeNetworkImage(
+        imageUrl: photoUrl.trim(),
         width: 98,
         height: 98,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 98,
-            height: 98,
-            color: const Color(0xFFD9D9D9),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.person,
-              size: 64,
-              color: Color(0xFF09092D),
-            ),
-          );
-        },
       ),
-    );
+      );
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../authentication/models/news_model.dart';
+import '../../../shared/widgets/web_safe_network_image.dart';
 
 class AddNewsPage extends StatefulWidget {
   const AddNewsPage({
@@ -64,18 +65,57 @@ class _AddNewsPageState extends State<AddNewsPage>
     final uri = Uri.tryParse(trimmed);
     if (uri == null) return trimmed;
 
-    // Convert common Google Drive share links into direct-view links.
-    if (uri.host.contains('drive.google.com')) {
-      final idFromQuery = uri.queryParameters['id'];
+    String? extractGoogleDriveFileId(Uri driveUri) {
+      // First try: check 'id' query parameter (works for most cases)
+      final idFromQuery = driveUri.queryParameters['id'];
       if (idFromQuery != null && idFromQuery.isNotEmpty) {
-        return 'https://drive.google.com/uc?export=view&id=$idFromQuery';
+        return idFromQuery;
       }
 
-      final segments = uri.pathSegments;
-      final fileIndex = segments.indexOf('d');
-      if (fileIndex != -1 && fileIndex + 1 < segments.length) {
-        final fileId = segments[fileIndex + 1];
-        return 'https://drive.google.com/uc?export=view&id=$fileId';
+      // Second try: look for /d/{fileId} pattern in path
+      final segments = driveUri.pathSegments;
+      for (var index = 0; index < segments.length; index++) {
+        final segment = segments[index];
+        if (segment == 'd' && index + 1 < segments.length) {
+          final fileId = segments[index + 1];
+          if (fileId.isNotEmpty && fileId.length > 20) {
+            return fileId;
+          }
+        }
+      }
+
+      // Third try: look for /file/d/{fileId} pattern (alternate format)
+      for (var index = 0; index < segments.length; index++) {
+        final segment = segments[index];
+        if ((segment == 'file' || segment == 'embed') && 
+            index + 2 < segments.length && 
+            segments[index + 1] == 'd') {
+          final fileId = segments[index + 2];
+          if (fileId.isNotEmpty && fileId.length > 20) {
+            return fileId;
+          }
+        }
+      }
+
+      // Fourth try: regex pattern to find any long alphanumeric string that looks like a file ID
+      // Google Drive IDs are typically 25-50 characters, alphanumeric with hyphens
+      final regexMatch = RegExp(r'[-\w]{25,}').firstMatch(driveUri.toString());
+      if (regexMatch != null) {
+        final extracted = regexMatch.group(0);
+        if (extracted != null && extracted.isNotEmpty) {
+          return extracted;
+        }
+      }
+
+      return null;
+    }
+
+    // Convert all Google Drive links into thumbnail URLs that work everywhere
+    if (uri.host.contains('drive.google.com')) {
+      final fileId = extractGoogleDriveFileId(uri);
+      if (fileId != null && fileId.isNotEmpty) {
+        // Use thumbnail endpoint - works for all Google Drive file types and formats
+        return 'https://drive.google.com/thumbnail?id=$fileId&sz=w1000';
       }
     }
 
@@ -268,6 +308,104 @@ class _AddNewsPageState extends State<AddNewsPage>
     );
   }
 
+  Widget _buildImagePreview() {
+    final rawUrl = _imageUrlController.text.trim();
+    final normalizedUrl = _normalizeImageUrl(rawUrl);
+    final hasInput = rawUrl.isNotEmpty;
+    final isValid = hasInput && _isValidImageUrl(rawUrl);
+
+    Widget previewChild;
+    if (!hasInput) {
+      previewChild = Container(
+        height: 170,
+        decoration: BoxDecoration(
+          color: _inputFill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _panelBorder),
+        ),
+        child: const Center(
+          child: Text(
+            'Image preview will appear here',
+            style: TextStyle(
+              color: Color(0xFF8F8FB2),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    } else if (!isValid) {
+      previewChild = Container(
+        height: 170,
+        decoration: BoxDecoration(
+          color: _inputFill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.8)),
+        ),
+        child: const Center(
+          child: Text(
+            'Invalid image link',
+            style: TextStyle(
+              color: Colors.redAccent,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+    } else {
+      previewChild = ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 170,
+          decoration: BoxDecoration(
+            color: _inputFill,
+            border: Border.all(color: _panelBorder),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              WebSafeNetworkImage(
+                imageUrl: normalizedUrl,
+                fit: BoxFit.cover,
+              ),
+              Positioned(
+                left: 12,
+                top: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Preview',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: KeyedSubtree(
+        key: ValueKey<String>(normalizedUrl.isEmpty ? 'empty' : normalizedUrl),
+        child: previewChild,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -438,6 +576,13 @@ class _AddNewsPageState extends State<AddNewsPage>
                                 return 'Use a valid image link, Google Drive link, or Pinterest link';
                               }
                               return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedBuilder(
+                            animation: _imageUrlController,
+                            builder: (context, child) {
+                              return _buildImagePreview();
                             },
                           ),
                           const SizedBox(height: 18),

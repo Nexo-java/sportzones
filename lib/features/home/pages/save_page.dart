@@ -5,6 +5,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../services/bookmark/bookmark_service.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../notification/pages/notification_page.dart';
+import '../../../shared/widgets/web_safe_network_image.dart';
 
 class SavePage extends StatefulWidget {
   const SavePage({super.key});
@@ -20,28 +21,12 @@ class _SavePageState extends State<SavePage> {
     setState(() {
       _bookmarkService.removeBookmark(id);
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Removed from bookmarks'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: Colors.grey.shade800,
-      ),
-    );
   }
 
   void _toggleBookmark(String id) {
     setState(() {
       _bookmarkService.removeBookmark(id);
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Removed from bookmarks'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: Colors.grey.shade800,
-      ),
-    );
   }
 
   void _openNotifications() {
@@ -161,20 +146,9 @@ class _BookmarkCardState extends State<_BookmarkCard> {
               borderRadius: BorderRadius.circular(14),
               child: SizedBox(
                 width: imageWidth,
-                child: Image.network(
-                  widget.item.imageUrl,
+                child: WebSafeNetworkImage(
+                  imageUrl: widget.item.imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: const Color(0xFF4A4A6A),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.image,
-                        color: Colors.white38,
-                        size: 30,
-                      ),
-                    );
-                  },
                 ),
               ),
             ),

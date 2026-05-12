@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _showSuccessBanner = false;
   bool _isLoginProcessing = false;
   String _successBannerText = 'Login Berhasil';
+  Color _successBannerColor = const Color(0xFF6FA437);
 
   static const _formPanelColor = Color(0xFFF2F2F5);
   static const _formInputColor = Color(0xFFF7F7FA);
@@ -212,16 +213,17 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _handleLoginPressed() async {
     if (_isLoginProcessing) return;
 
+    _successBannerController.stop();
+    _successBannerController.reset();
+
     setState(() {
       _isLoginProcessing = true;
-      _showSuccessBanner = true;
+      _showSuccessBanner = false;
       _successBannerText = 'Login Berhasil';
+      _successBannerColor = const Color(0xFF6FA437);
     });
 
     try {
-      await _successBannerController.forward();
-      await Future<void>.delayed(const Duration(milliseconds: 650));
-
       if (!mounted) return;
 
       // Get credentials from form
@@ -239,19 +241,30 @@ class _LoginScreenState extends State<LoginScreen>
         _successBannerController.reset();
         _loginExitController.reset();
         setState(() {
-          _showSuccessBanner = false;
+          _showSuccessBanner = true;
           _isLoginProcessing = false;
-          _successBannerText = 'Login Berhasil';
+          _successBannerText = 'Login gagal. Email atau password salah.';
+          _successBannerColor = const Color(0xFFD94242);
         });
-        
-        // Show error message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login gagal. Username atau password salah.')),
-          );
-        }
+        await _successBannerController.forward();
+        await Future<void>.delayed(const Duration(milliseconds: 1400));
+        if (!mounted) return;
+        await _successBannerController.reverse();
+        if (!mounted) return;
+        setState(() {
+          _showSuccessBanner = false;
+        });
         return;
       }
+
+      if (!mounted) return;
+      setState(() {
+        _showSuccessBanner = true;
+        _successBannerText = 'Login Berhasil';
+        _successBannerColor = const Color(0xFF6FA437);
+      });
+      await _successBannerController.forward();
+      await Future<void>.delayed(const Duration(milliseconds: 650));
 
       await _loginExitController.forward();
 
@@ -434,7 +447,8 @@ class _LoginScreenState extends State<LoginScreen>
               child: IgnorePointer(
                 child: TopSuccessBanner(
                   animation: _successBannerSlideAnimation,
-                    text: _successBannerText,
+                  text: _successBannerText,
+                  backgroundColor: _successBannerColor,
                   maxWidth: 260,
                   height: 60,
                   fontSize: 17,

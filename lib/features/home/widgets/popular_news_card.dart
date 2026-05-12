@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../../shared/widgets/web_safe_network_image.dart';
 
 class PopularNewsCard extends StatefulWidget {
   const PopularNewsCard({
@@ -59,19 +60,9 @@ class _PopularNewsCardState extends State<PopularNewsCard> {
                             size: 38,
                           ),
                         )
-                      : Image.network(
-                          imageUrl,
+                        : WebSafeNetworkImage(
+                          imageUrl: imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: const Color(0xFF4A4A6A),
-                              child: const Icon(
-                                Icons.image,
-                                color: Colors.white30,
-                                size: 38,
-                              ),
-                            );
-                          },
                         ),
                 ),
               ),

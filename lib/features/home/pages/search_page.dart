@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../news/pages/news_detail_page.dart';
 import '../../notification/pages/notification_page.dart';
+import '../../authentication/models/news_model.dart';
 import '../widgets/latest_news_card.dart';
 import '../../../shared/widgets/custom_header.dart';
 
@@ -24,106 +29,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newsSubscription;
 
   bool _isFilterOpen = false;
   bool _isShowingResults = false;
   bool _isSearching = false;
   String _submittedQuery = '';
   String? _selectedCategory;
-  List<Map<String, String>> _searchResults = const [];
+  List<SportModel> _searchResults = const [];
+  List<SportModel> _allNews = [];
 
-  final List<Map<String, String>> _dummyNews = const [
-    {
-      'id': 'search-1',
-      'title': 'Lin chun Yi wins india open 2026 Against Jonathan Cristie',
-      'category': 'Badminton',
-      'date': '19/20/2023',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Hot news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-19T09:30:00.000',
-    },
-    {
-      'id': 'search-2',
-      'title': 'Tim Judo Indonesia Bawa Pulang 4 Emas, Lampaui Target di SEA Games 2025',
-      'category': 'Judo',
-      'date': '16/12/2025',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Latest news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-18T12:00:00.000',
-    },
-    {
-      'id': 'search-3',
-      'title': 'Manchester is red! Manchester is back with big momentum',
-      'category': 'Soccer',
-      'date': '12/01/01',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-17T15:00:00.000',
-    },
-    {
-      'id': 'search-4',
-      'title': 'Indonesia has already for Indonesia in this major event',
-      'category': 'Badminton',
-      'date': '12/01/02',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-17T18:20:00.000',
-    },
-    {
-      'id': 'search-5',
-      'title': 'Brazil keeps pushing after dramatic late comeback win',
-      'category': 'Soccer',
-      'date': '12/01/03',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-16T08:05:00.000',
-    },
-    {
-      'id': 'search-6',
-      'title': 'The derby turns chaotic after a stunning extra-time goal',
-      'category': 'Soccer',
-      'date': '12/01/04',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-15T19:40:00.000',
-    },
-    {
-      'id': 'search-7',
-      'title': 'Final set thriller ends with unbelievable rally sequence',
-      'category': 'Tennis',
-      'date': '12/01/05',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-15T09:00:00.000',
-    },
-    {
-      'id': 'search-8',
-      'title': 'New strategy changes the game for underdog contenders',
-      'category': 'Basketball',
-      'date': '12/01/06',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-14T16:10:00.000',
-    },
-    {
-      'id': 'search-9',
-      'title': 'Captain returns and instantly changes team chemistry',
-      'category': 'Volly',
-      'date': '12/01/07',
-      'image': 'https://via.placeholder.com/150',
-      'description': 'Popular news detail from home page.',
-      'createdBy': 'Admin',
-      'updatedAt': '2026-04-14T11:50:00.000',
-    },
-  ];
 
   final List<_SearchCategory> _categories = const [
     _SearchCategory(name: 'Badminton', icon: Icons.sports_tennis),
@@ -139,12 +55,37 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _loadSearchHistory();
+    _loadNewsFromFirestore();
+  }
+
+  void _loadNewsFromFirestore() {
+    _newsSubscription = _firestore.collection('berita').snapshots().listen(
+      (snapshot) {
+        if (!mounted) return;
+
+        final newsList = snapshot.docs.map((doc) {
+          final data = doc.data();
+          data['id_berita'] = doc.id;
+          return SportModel.fromJson(data);
+        }).toList();
+
+        setState(() {
+          _allNews = newsList;
+        });
+      },
+      onError: (e) {
+        if (kDebugMode) {
+          print('Error loading news: $e');
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _newsSubscription?.cancel();
     super.dispose();
   }
 
@@ -206,10 +147,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     final normalizedQuery = normalized.toLowerCase();
     final selectedCategory = _selectedCategory;
 
-    final results = _dummyNews.where((item) {
-      final title = (item['title'] ?? '').toLowerCase();
-      final description = (item['description'] ?? '').toLowerCase();
-      final category = item['category'] ?? '';
+    final results = _allNews.where((item) {
+      final title = item.judul.toLowerCase();
+      final description = item.deskripsi.toLowerCase();
+      final category = item.kategori;
 
       final matchesKeyword = title.contains(normalizedQuery) || description.contains(normalizedQuery);
       final matchesCategory = selectedCategory == null || selectedCategory == category;
@@ -275,23 +216,21 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     _searchFocusNode.unfocus();
   }
 
-  void _openNewsDetail(Map<String, String> item) {
-    final parsedUpdatedAt = DateTime.tryParse(item['updatedAt'] ?? '');
-
+  void _openNewsDetail(SportModel item) {
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 220),
         reverseTransitionDuration: const Duration(milliseconds: 180),
         pageBuilder: (context, animation, secondaryAnimation) => NewsDetailPage(
-          newsId: item['id'],
-          imageUrl: item['image'] ?? '',
-          title: item['title'] ?? '',
-          description: item['description'] ?? '',
-          date: item['date'] ?? '',
-          category: item['category'] ?? '',
-          createdBy: item['createdBy'] ?? 'Admin',
-          updatedAt: parsedUpdatedAt,
+          newsId: item.idBerita,
+          imageUrl: item.imgUrl,
+          title: item.judul,
+          description: item.deskripsi,
+          date: _formatDate(item.createdAt),
+          category: item.kategori,
+          createdBy: item.createdBy,
+          updatedAt: item.updatedAt,
           initialBottomTabIndex: 1,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -313,6 +252,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
         },
       ),
     );
+  }
+
+  String _formatDate(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 
   @override
@@ -522,11 +465,11 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                 else
                                   ..._searchResults.map((item) {
                                     return LatestNewsCard(
-                                      newsId: item['id'],
-                                      title: item['title'] ?? '',
-                                      category: item['category'] ?? '',
-                                      date: item['date'] ?? '',
-                                      imageUrl: item['image'] ?? '',
+                                      newsId: item.idBerita,
+                                      title: item.judul,
+                                      category: item.kategori,
+                                      date: _formatDate(item.createdAt),
+                                      imageUrl: item.imgUrl,
                                       onTap: () => _openNewsDetail(item),
                                     );
                                   }),

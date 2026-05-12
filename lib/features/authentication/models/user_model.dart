@@ -131,7 +131,9 @@ class UserModel {
       role: map['role'] ?? 'user',
       password: map['password'] ?? '',
       email: map['email'] ?? '',
-      savedNews: List<String>.from(map['saved_news'] ?? []),
+        savedNews: (map['saved_news'] is Iterable)
+          ? List<String>.from((map['saved_news'] as Iterable).map((e) => e?.toString() ?? ''))
+          : <String>[],
       imgUrl: parsedImgUrl,
     );
   }

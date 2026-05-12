@@ -10,6 +10,7 @@ import '../../notification/pages/notification_page.dart';
 import '../../../services/user/user_repository.dart';
 import '../../../services/bookmark/bookmark_service.dart';
 import '../../../services/user/user_service.dart';
+import '../../../shared/widgets/web_safe_network_image.dart';
 import '../../../shared/widgets/custom_bottom_navbar.dart';
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/top_success_banner.dart';
@@ -55,6 +56,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   late final Animation<Offset> _actionBannerAnimation;
   bool _isLoved = false;
   bool _isSaved = false;
+  int _likeCount = 0;
   bool _showActionBanner = false;
   String _actionBannerText = '';
   Color _actionBannerColor = const Color(0xFF6FA437);
@@ -63,6 +65,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   late final String _itemId;
   late DateTime _now;
   Timer? _relativeTimeTimer;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _likesCountSubscription;
 
   @override
   void initState() {
@@ -77,6 +80,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     _itemId = widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
     _isSaved = _bookmarkService.isBookmarked(_itemId);
     _checkIfLiked();
+    _listenToLikeCount();
 
     _actionBannerController = AnimationController(
       duration: const Duration(milliseconds: 820),
@@ -104,8 +108,31 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   @override
   void dispose() {
     _relativeTimeTimer?.cancel();
+    _likesCountSubscription?.cancel();
     _actionBannerController.dispose();
     super.dispose();
+  }
+
+  void _listenToLikeCount() {
+    _likesCountSubscription?.cancel();
+    _likesCountSubscription = _firestore
+        .collection('likes')
+        .where('id_berita', isEqualTo: _itemId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (!mounted) return;
+        setState(() {
+          _likeCount = snapshot.docs.length;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _likeCount = 0;
+        });
+      },
+    );
   }
 
   Future<void> _checkIfLiked() async {
@@ -510,55 +537,53 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 },
                                 borderRadius: BorderRadius.circular(18),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(4),
-                                  child: Icon(
-                                    _isLoved
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    color: _isLoved
-                                        ? const Color(0xFFFF5F5F)
-                                        : Colors.white70,
-                                    size: 24,
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _isLoved
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: _isLoved
+                                            ? const Color(0xFFFF5F5F)
+                                            : Colors.white70,
+                                        size: 24,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _likeCount > 999 ? '999+' : '$_likeCount',
+                                        style: const TextStyle(
+                                          color: Color(0xFFAAAAAA),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 14),
                               InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _isSaved = !_isSaved;
-                                  });
+                                onTap: () async {
+                                  final newsItem = NewsItem(
+                                    id: _itemId,
+                                    title: widget.title,
+                                    category: widget.category,
+                                    date: widget.date,
+                                    imageUrl: widget.imageUrl,
+                                  );
 
                                   if (_isSaved) {
-                                    final newsItem = NewsItem(
-                                      id: _itemId,
-                                      title: widget.title,
-                                      category: widget.category,
-                                      date: widget.date,
-                                      imageUrl: widget.imageUrl,
-                                    );
-                                    _bookmarkService.addBookmark(newsItem);
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content:
-                                            const Text('Added to bookmarks'),
-                                        duration: const Duration(seconds: 2),
-                                        backgroundColor: Colors.grey.shade800,
-                                      ),
-                                    );
-                                  } else {
                                     _bookmarkService.removeBookmark(_itemId);
+                                  } else {
+                                    _bookmarkService.addBookmark(newsItem);
+                                  }
 
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                          'Removed from bookmarks',
-                                        ),
-                                        duration: const Duration(seconds: 2),
-                                        backgroundColor: Colors.grey.shade800,
-                                      ),
-                                    );
+                                  if (mounted) {
+                                    setState(() {
+                                      _isSaved = !_isSaved;
+                                    });
                                   }
                                 },
                                 borderRadius: BorderRadius.circular(18),
@@ -687,20 +712,9 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     }
 
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return Image.network(
-        imageUrl,
+      return WebSafeNetworkImage(
+        imageUrl: imageUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: const Color(0xFF4A4A6A),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.image_not_supported,
-              color: Colors.white30,
-              size: 44,
-            ),
-          );
-        },
       );
     }
 
