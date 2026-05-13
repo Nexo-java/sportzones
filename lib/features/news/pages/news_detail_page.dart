@@ -214,17 +214,17 @@ class _NewsDetailPageState extends State<NewsDetailPage>
             return AlertDialog(
               backgroundColor: const Color(0xFF1A1A40),
               title: const Text(
-                'Hapus Berita',
+                'Delete News',
                 style: TextStyle(color: Colors.white),
               ),
               content: const Text(
-                'Yakin ingin menghapus berita ini?',
+                'Delete this news?',
                 style: TextStyle(color: Colors.white70),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Batal'),
+                  child: const Text('Cancel'),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(true),
@@ -232,7 +232,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                     backgroundColor: const Color(0xFFD94242),
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Hapus'),
+                  child: const Text('Delete'),
                 ),
               ],
             );
@@ -245,11 +245,23 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     }
 
     try {
+      // Delete all likes associated with this news item
+      final likesSnapshot = await _firestore
+          .collection('likes')
+          .where('id_berita', isEqualTo: _itemId)
+          .get();
+
+      // Delete each like document in a batch
+      for (final doc in likesSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // Delete the news item itself
       await _firestore.collection('berita').doc(_itemId).delete();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal menghapus berita di Firebase')),
+        SnackBar(content: Text('Gagal menghapus berita: ${e.toString()}')),
       );
       return;
     }
@@ -538,19 +550,9 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 borderRadius: BorderRadius.circular(18),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                                  child: Column(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        _isLoved
-                                            ? Icons.favorite
-                                            : Icons.favorite_border,
-                                        color: _isLoved
-                                            ? const Color(0xFFFF5F5F)
-                                            : Colors.white70,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(height: 2),
                                       Text(
                                         _likeCount > 999 ? '999+' : '$_likeCount',
                                         style: const TextStyle(
@@ -559,6 +561,16 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                           fontWeight: FontWeight.w700,
                                           height: 1,
                                         ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        _isLoved
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: _isLoved
+                                            ? const Color(0xFFFF5F5F)
+                                            : Colors.white70,
+                                        size: 24,
                                       ),
                                     ],
                                   ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../services/bookmark/bookmark_service.dart';
+import '../../../services/user/user_repository.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../notification/pages/notification_page.dart';
 import '../../../shared/widgets/web_safe_network_image.dart';
@@ -15,18 +16,96 @@ class SavePage extends StatefulWidget {
 }
 
 class _SavePageState extends State<SavePage> {
-  final BookmarkService _bookmarkService = BookmarkService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<_SavedNewsItem> _savedNews = [];
+  bool _isLoading = true;
 
-  void _deleteBookmark(String id) {
-    setState(() {
-      _bookmarkService.removeBookmark(id);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedNews();
   }
 
-  void _toggleBookmark(String id) {
-    setState(() {
-      _bookmarkService.removeBookmark(id);
-    });
+  Future<void> _loadSavedNews() async {
+    final currentUser = UserRepository.instance.getCurrentUser();
+    if (currentUser == null) {
+      setState(() {
+        _isLoading = false;
+        _savedNews = [];
+      });
+      return;
+    }
+
+    try {
+      List<_SavedNewsItem> loadedNews = [];
+
+      // Get saved news IDs from user
+      for (final newsId in currentUser.savedNews) {
+        try {
+          final doc = await _firestore.collection('berita').doc(newsId).get();
+          if (doc.exists) {
+            final data = doc.data()!;
+            loadedNews.add(
+              _SavedNewsItem(
+                id: newsId,
+                title: data['judul'] ?? '',
+                category: data['kategori'] ?? '',
+                imageUrl: data['img_url'] ?? '',
+                date: _formatDate(data['created_at']),
+              ),
+            );
+          }
+        } catch (_) {
+          // Skip if news document not found or error
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _savedNews = loadedNews;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _savedNews = [];
+        });
+      }
+    }
+  }
+
+  String _formatDate(dynamic createdAt) {
+    if (createdAt is Timestamp) {
+      final date = createdAt.toDate();
+      return '${date.day}/${date.month}/${date.year}';
+    } else if (createdAt is String) {
+      try {
+        final date = DateTime.parse(createdAt);
+        return '${date.day}/${date.month}/${date.year}';
+      } catch (_) {
+        return '';
+      }
+    }
+    return '';
+  }
+
+  void _deleteBookmark(String newsId) async {
+    try {
+      final currentUser = UserRepository.instance.getCurrentUser();
+      if (currentUser == null) return;
+
+      // Remove from Firestore
+      await _firestore.collection('users').doc(currentUser.idUser).update({
+        'saved_news': FieldValue.arrayRemove([newsId]),
+      });
+
+      // Reload bookmarks
+      await _loadSavedNews();
+    } catch (_) {
+      // Error handling
+    }
   }
 
   void _openNotifications() {
@@ -52,28 +131,31 @@ class _SavePageState extends State<SavePage> {
 
   @override
   Widget build(BuildContext context) {
-    final bookmarks = _bookmarkService.bookmarks;
-
     return Container(
       color: const Color(0xFF09092D),
       child: Column(
         children: [
           CustomHeader(onNotificationTap: _openNotifications),
           Expanded(
-            child: bookmarks.isEmpty
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFECF06)),
+                    ),
+                  )
+                : _savedNews.isEmpty
                 ? EmptyState(
                     message: 'No saved news yet',
                     icon: Icons.bookmark_border,
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: bookmarks.length,
+                    itemCount: _savedNews.length,
                     itemBuilder: (context, index) {
-                      final item = bookmarks[index];
+                      final item = _savedNews[index];
                       return _BookmarkCard(
                         item: item,
-                        onDelete: () => _deleteBookmark(item.id),
-                        onBookmarkToggle: () => _toggleBookmark(item.id),
+                        onBookmarkToggle: () => _deleteBookmark(item.id),
                       );
                     },
                   ),
@@ -84,14 +166,28 @@ class _SavePageState extends State<SavePage> {
   }
 }
 
+class _SavedNewsItem {
+  final String id;
+  final String title;
+  final String category;
+  final String imageUrl;
+  final String date;
+
+  _SavedNewsItem({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.imageUrl,
+    required this.date,
+  });
+}
+
 class _BookmarkCard extends StatefulWidget {
-  final NewsItem item;
-  final VoidCallback onDelete;
+  final _SavedNewsItem item;
   final VoidCallback onBookmarkToggle;
 
   const _BookmarkCard({
     required this.item,
-    required this.onDelete,
     required this.onBookmarkToggle,
   });
 
@@ -201,7 +297,7 @@ class _BookmarkCardState extends State<_BookmarkCard> {
               ),
             ),
             SizedBox(width: 8 * scale),
-            // ACTIONS (delete + bookmark)
+            // ACTIONS (bookmark)
             SizedBox(
               width: actionWidth,
               child: Column(
@@ -210,13 +306,6 @@ class _BookmarkCardState extends State<_BookmarkCard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // DELETE button
-                      _actionIcon(
-                        icon: Icons.delete_outline,
-                        color: const Color(0xFFFF5F5F),
-                        onTap: widget.onDelete,
-                      ),
-                      SizedBox(width: 10 * scale),
                       // BOOKMARK button (always yellow/active)
                       _actionIcon(
                         icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,

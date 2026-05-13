@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/utils/responsive_layout.dart';
 import '../../../services/user/user_repository.dart';
+import '../../../services/auth/firebase_auth_service.dart';
 import '../authentication/models/user_model.dart';
 import '../../shared/widgets/web_safe_network_image.dart';
 
@@ -359,6 +360,68 @@ class _EditProfilePageState extends State<_EditProfilePage> {
     });
   }
 
+  String _normalizeImageUrl(String rawUrl) {
+    var trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return trimmed;
+
+    if (!trimmed.contains('://')) {
+      trimmed = 'https://$trimmed';
+    }
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null) return trimmed;
+
+    String? extractGoogleDriveFileId(Uri driveUri) {
+      final idFromQuery = driveUri.queryParameters['id'];
+      if (idFromQuery != null && idFromQuery.isNotEmpty) {
+        return idFromQuery;
+      }
+
+      final segments = driveUri.pathSegments;
+      for (var index = 0; index < segments.length; index++) {
+        final segment = segments[index];
+        if (segment == 'd' && index + 1 < segments.length) {
+          final fileId = segments[index + 1];
+          if (fileId.isNotEmpty && fileId.length > 20) {
+            return fileId;
+          }
+        }
+      }
+
+      for (var index = 0; index < segments.length; index++) {
+        final segment = segments[index];
+        if ((segment == 'file' || segment == 'embed') &&
+            index + 2 < segments.length &&
+            segments[index + 1] == 'd') {
+          final fileId = segments[index + 2];
+          if (fileId.isNotEmpty && fileId.length > 20) {
+            return fileId;
+          }
+        }
+      }
+
+      final regexMatch = RegExp(r'[-\\w]{25,}').firstMatch(driveUri.toString());
+      if (regexMatch != null) return regexMatch.group(0);
+      return null;
+    }
+
+    if (uri.host.contains('drive.google.com')) {
+      final fileId = extractGoogleDriveFileId(uri);
+      if (fileId != null && fileId.isNotEmpty) {
+        return 'https://drive.google.com/thumbnail?id=$fileId&sz=w1000';
+      }
+    }
+
+    if (uri.host.contains('dropbox.com')) {
+      final updatedQuery = Map<String, String>.from(uri.queryParameters)
+        ..['raw'] = '1';
+      return uri.replace(queryParameters: updatedQuery).toString();
+    }
+
+    // Pinterest or direct links: return as-is
+    return trimmed;
+  }
+
   InputDecoration _inputDecoration(String hint, {required IconData icon}) {
     return InputDecoration(
       hintText: hint,
@@ -401,20 +464,43 @@ class _EditProfilePageState extends State<_EditProfilePage> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) {
+    if (!isValid) return;
+
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final rawPhoto = _photoUrlController.text.trim();
+    final normalizedPhoto = _normalizeImageUrl(rawPhoto);
+
+    final currentUser = UserRepository.instance.getCurrentUser();
+    if (currentUser == null) {
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        _ProfileData(username: username, email: email, photoUrl: normalizedPhoto),
+      );
       return;
     }
 
-    Navigator.pop(
-      context,
-      _ProfileData(
-        username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
-        photoUrl: _photoUrlController.text.trim(),
-      ),
+    final ok = await FirebaseAuthService.instance.updateUserProfile(
+      userId: currentUser.idUser,
+      username: username,
+      email: email,
+      imgUrl: normalizedPhoto,
     );
+
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(
+        context,
+        _ProfileData(username: username, email: email, photoUrl: normalizedPhoto),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update profile')),
+      );
+    }
   }
 
   Widget _previewAvatar() {
@@ -435,6 +521,7 @@ class _EditProfilePageState extends State<_EditProfilePage> {
       );
     }
 
+    final previewUrl = _livePhotoUrl.isEmpty ? '' : _normalizeImageUrl(_livePhotoUrl);
     return Container(
       width: 96,
       height: 96,
@@ -443,19 +530,18 @@ class _EditProfilePageState extends State<_EditProfilePage> {
         shape: BoxShape.circle,
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.network(
-        _livePhotoUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return const Center(
-            child: Icon(
-              Icons.person,
-              size: 52,
-              color: Color(0xFF09092D),
+      child: previewUrl.isEmpty
+          ? const Center(
+              child: Icon(
+                Icons.person,
+                size: 52,
+                color: Color(0xFF09092D),
+              ),
+            )
+          : WebSafeNetworkImage(
+              imageUrl: previewUrl,
+              fit: BoxFit.cover,
             ),
-          );
-        },
-      ),
     );
   }
 
