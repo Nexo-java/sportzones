@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../authentication/models/news_model.dart';
+import '../../authentication/models/sport_model.dart';
 import '../../../shared/widgets/web_safe_network_image.dart';
 
 class AddNewsPage extends StatefulWidget {
@@ -9,7 +10,8 @@ class AddNewsPage extends StatefulWidget {
     this.initialNews,
     this.pageTitle = 'Create News',
     this.headerTitle = 'Publish New Story',
-    this.headerSubtitle = 'Fill in the details below to add a new headline to SportZone.',
+    this.headerSubtitle =
+        'Fill in the details below to add a new headline to SportZone.',
     this.submitButtonText = 'Publish News',
   });
 
@@ -23,8 +25,19 @@ class AddNewsPage extends StatefulWidget {
   State<AddNewsPage> createState() => _AddNewsPageState();
 }
 
+/// AddNewsPage
+///
+/// Kegunaan:
+/// - Menyediakan form UI untuk membuat atau mengedit berita (`SportModel`).
+/// - Menormalisasi URL gambar (Google Drive, Dropbox, Pinterest) sebelum disimpan.
+/// - Menghasilkan `SportModel` dengan data yang diisi lalu dikembalikan ke pemanggil.
+///
+/// Catatan:
+/// - Validasi dasar dilakukan pada form; validasi tambahan dapat ditambahkan
+///   sebelum menyimpan ke Firestore.
+
 class _AddNewsPageState extends State<AddNewsPage>
-  with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _entryController;
   late final Animation<double> _entryFadeAnimation;
   late final Animation<Offset> _entrySlideAnimation;
@@ -87,8 +100,8 @@ class _AddNewsPageState extends State<AddNewsPage>
       // Third try: look for /file/d/{fileId} pattern (alternate format)
       for (var index = 0; index < segments.length; index++) {
         final segment = segments[index];
-        if ((segment == 'file' || segment == 'embed') && 
-            index + 2 < segments.length && 
+        if ((segment == 'file' || segment == 'embed') &&
+            index + 2 < segments.length &&
             segments[index + 1] == 'd') {
           final fileId = segments[index + 2];
           if (fileId.isNotEmpty && fileId.length > 20) {
@@ -175,10 +188,7 @@ class _AddNewsPageState extends State<AddNewsPage>
       parent: _entryController,
       curve: Curves.easeOutCubic,
     );
-    _entryFadeAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(curve);
+    _entryFadeAnimation = Tween<double>(begin: 0, end: 1).animate(curve);
     _entrySlideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.03),
       end: Offset.zero,
@@ -211,20 +221,24 @@ class _AddNewsPageState extends State<AddNewsPage>
 
     final selectedCategory = _selectedCategory;
     if (selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Category is required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Category is required')));
       return;
     }
 
     final initialNews = widget.initialNews;
-    final normalizedImageUrl = _normalizeImageUrl(_imageUrlController.text.trim());
+    final normalizedImageUrl = _normalizeImageUrl(
+      _imageUrlController.text.trim(),
+    );
     final normalizedMapsUrl = _mapsUrlController.text.trim().isEmpty
         ? null
         : _normalizeImageUrl(_mapsUrlController.text.trim());
 
     // Generate unique ID for new news or use existing ID for editing
-    final newsId = initialNews?.idBerita ?? 'news_${DateTime.now().millisecondsSinceEpoch}';
+    final newsId =
+        initialNews?.idBerita ??
+        'news_${DateTime.now().millisecondsSinceEpoch}';
 
     final news = SportModel.tambahData(
       idBerita: newsId,
@@ -280,12 +294,28 @@ class _AddNewsPageState extends State<AddNewsPage>
 
   InputDecoration _inputDecoration(
     String hint, {
-    required IconData icon,
+    IconData? icon,
+    String? svgAsset,
   }) {
+    Widget? prefix;
+    if (svgAsset != null) {
+      prefix = Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: SvgPicture.asset(
+          svgAsset,
+          width: 20,
+          height: 20,
+          colorFilter: const ColorFilter.mode(Color(0xFFACAFD8), BlendMode.srcIn),
+        ),
+      );
+    } else if (icon != null) {
+      prefix = Icon(icon, color: const Color(0xFFACAFD8), size: 20);
+    }
+
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFF8F8FB2), fontSize: 14),
-      prefixIcon: Icon(icon, color: const Color(0xFFACAFD8), size: 20),
+      prefixIcon: prefix,
       filled: true,
       fillColor: _inputFill,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -366,15 +396,15 @@ class _AddNewsPageState extends State<AddNewsPage>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              WebSafeNetworkImage(
-                imageUrl: normalizedUrl,
-                fit: BoxFit.cover,
-              ),
+              WebSafeNetworkImage(imageUrl: normalizedUrl, fit: BoxFit.cover),
               Positioned(
                 left: 12,
                 top: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(999),
@@ -491,7 +521,7 @@ class _AddNewsPageState extends State<AddNewsPage>
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
                               'Select category',
-                              icon: Icons.category_rounded,
+                              svgAsset: 'assets/icons/category_icon.svg',
                             ),
                             iconEnabledColor: Colors.white,
                             items: _categories
@@ -500,7 +530,9 @@ class _AddNewsPageState extends State<AddNewsPage>
                                     value: c,
                                     child: Text(
                                       c,
-                                      style: const TextStyle(color: Colors.white),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 )

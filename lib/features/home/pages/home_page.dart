@@ -10,7 +10,7 @@ import '../../../core/utils/responsive_layout.dart';
 import '../../news/pages/news_detail_page.dart';
 import '../../notification/pages/notification_page.dart';
 import '../../authentication/models/like_model.dart';
-import '../../authentication/models/news_model.dart';
+import '../../authentication/models/sport_model.dart';
 import '../widgets/hot_news_card.dart';
 import '../widgets/latest_news_section.dart';
 import '../widgets/popular_news_section.dart';
@@ -44,35 +44,38 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _likesSubscription = _firestore.collection('likes').snapshots().listen(
-      (snapshot) {
-        if (!mounted) return;
+    _likesSubscription = _firestore
+        .collection('likes')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
 
-        final likes = snapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              data['like_id'] = data['like_id'] ?? doc.id;
-              return LikeModel.fromJson(data);
-            })
-            .where((like) => like.idBerita.isNotEmpty)
-            .toList(growable: false);
+            final likes = snapshot.docs
+                .map((doc) {
+                  final data = doc.data();
+                  data['like_id'] = data['like_id'] ?? doc.id;
+                  return LikeModel.fromJson(data);
+                })
+                .where((like) => like.idBerita.isNotEmpty)
+                .toList(growable: false);
 
-        final counts = <String, int>{};
-        for (final like in likes) {
-          counts[like.idBerita] = (counts[like.idBerita] ?? 0) + 1;
-        }
+            final counts = <String, int>{};
+            for (final like in likes) {
+              counts[like.idBerita] = (counts[like.idBerita] ?? 0) + 1;
+            }
 
-        setState(() {
-          _likeCounts = counts;
-        });
-      },
-      onError: (_) {
-        if (!mounted) return;
-        setState(() {
-          _likeCounts = const {};
-        });
-      },
-    );
+            setState(() {
+              _likeCounts = counts;
+            });
+          },
+          onError: (_) {
+            if (!mounted) return;
+            setState(() {
+              _likeCounts = const {};
+            });
+          },
+        );
     _startHotNewsAutoSlide();
   }
 
@@ -143,7 +146,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onCategorySelected(SportsCategory category) {
-    final index = SportsCategoryList.categories.indexWhere((item) => item.name == category.name);
+    final index = SportsCategoryList.categories.indexWhere(
+      (item) => item.name == category.name,
+    );
     if (index >= 0) {
       setState(() {
         _selectedCategoryIndex = index;
@@ -151,19 +156,28 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _openNotifications(ValueNotifier<List<Map<String, dynamic>>> notifications) {
+  void _openNotifications(
+    ValueNotifier<List<Map<String, dynamic>>> notifications,
+  ) {
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 240),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) => NotificationPage(notifications: notifications),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            NotificationPage(notifications: notifications),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
           return FadeTransition(
             opacity: Tween<double>(begin: 0, end: 1).animate(curve),
             child: SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(curve),
               child: child,
             ),
           );
@@ -211,6 +225,7 @@ class _HomePageState extends State<HomePage> {
           createdAt: createdAt,
           updatedAt: updatedAt,
           initialBottomTabIndex: 0,
+          notifications: widget.notifications,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curve = CurvedAnimation(
@@ -234,7 +249,9 @@ class _HomePageState extends State<HomePage> {
 
     if (result == true && mounted) {
       setState(() {
-        widget.latestNews.removeWhere((item) => item.idBerita == resolvedNewsId);
+        widget.latestNews.removeWhere(
+          (item) => item.idBerita == resolvedNewsId,
+        );
       });
     } else if (result is Map &&
         result['action'] == 'updated' &&
@@ -269,9 +286,10 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      await precacheImage(provider, context).timeout(
-        const Duration(milliseconds: 120),
-      );
+      await precacheImage(
+        provider,
+        context,
+      ).timeout(const Duration(milliseconds: 120));
     } catch (_) {
       // Ignore image warm-up failures and keep navigation responsive.
     }
@@ -340,10 +358,11 @@ class _HomePageState extends State<HomePage> {
         : widget.latestNews
               .where(
                 (item) =>
-                    item.category.trim().toLowerCase() == selectedCategory!.name.toLowerCase(),
+                    item.category.trim().toLowerCase() ==
+                    selectedCategory!.name.toLowerCase(),
               )
               .toList(growable: false);
-          final popularNews = _popularNewsFromRealtime();
+    final popularNews = _popularNewsFromRealtime();
     final topPadding = MediaQuery.paddingOf(context).top;
     final headerHeight = topPadding + 65;
 
@@ -356,7 +375,11 @@ class _HomePageState extends State<HomePage> {
             delegate: _PinnedSectionDelegate(
               height: headerHeight,
               child: CustomHeader(
-                onNotificationTap: () => _openNotifications(widget.notifications),
+                onNotificationTap: () =>
+                    _openNotifications(widget.notifications),
+                unreadNotificationCount: widget.notifications.value
+                    .where((n) => (n['isRead'] as bool? ?? false) == false)
+                    .length,
               ),
             ),
           ),
@@ -367,7 +390,10 @@ class _HomePageState extends State<HomePage> {
               child: Container(
                 color: const Color(0xFF09092D),
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 child: SportsCategoryList(
                   initialSelectedIndex: _selectedCategoryIndex,
                   onCategorySelected: _onCategorySelected,
@@ -459,10 +485,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _PinnedSectionDelegate extends SliverPersistentHeaderDelegate {
-  _PinnedSectionDelegate({
-    required this.height,
-    required this.child,
-  });
+  _PinnedSectionDelegate({required this.height, required this.child});
 
   final double height;
   final Widget child;
@@ -474,7 +497,11 @@ class _PinnedSectionDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return SizedBox.expand(child: child);
   }
 

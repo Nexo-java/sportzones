@@ -38,11 +38,17 @@ class CustomBottomNavBar extends StatelessWidget {
           final rawNotchLeft =
               (itemWidth * currentIndex) + ((itemWidth - _notchWidth) / 2);
           final rawCircleLeft =
-              (itemWidth * currentIndex) + ((itemWidth - _activeCircleSize) / 2);
+              (itemWidth * currentIndex) +
+              ((itemWidth - _activeCircleSize) / 2);
 
-          final maxNotchLeft = math.max(0.0, constraints.maxWidth - _notchWidth);
-          final maxCircleLeft =
-              math.max(0.0, constraints.maxWidth - _activeCircleSize);
+          final maxNotchLeft = math.max(
+            0.0,
+            constraints.maxWidth - _notchWidth,
+          );
+          final maxCircleLeft = math.max(
+            0.0,
+            constraints.maxWidth - _activeCircleSize,
+          );
 
           final notchLeft = rawNotchLeft.clamp(0.0, maxNotchLeft).toDouble();
           final circleLeft = rawCircleLeft.clamp(0.0, maxCircleLeft).toDouble();
@@ -191,12 +197,7 @@ class _ActiveNotchPainter extends CustomPainter {
         size.width * 0.84,
         size.height * 0.50,
       )
-      ..quadraticBezierTo(
-        size.width * 0.94,
-        0,
-        size.width,
-        0,
-      )
+      ..quadraticBezierTo(size.width * 0.94, 0, size.width, 0)
       ..close();
 
     canvas.drawPath(path, paint);

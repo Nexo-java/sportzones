@@ -9,17 +9,20 @@ import '../../shared/widgets/web_safe_network_image.dart';
 
 import '../authentication/screens/splash_screen.dart';
 import '../../shared/widgets/custom_header.dart';
+import '../notification/pages/notification_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     required this.bookmarkCount,
     required this.onOpenBookmarks,
+    this.notifications,
   });
 
   static const _pageBg = Color(0xFF09092D);
   final int bookmarkCount;
   final VoidCallback onOpenBookmarks;
+  final ValueNotifier<List<Map<String, dynamic>>>? notifications;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -33,6 +36,34 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _initializeUserData();
+  }
+
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 240),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            NotificationPage(notifications: widget.notifications),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0, end: 1).animate(curve),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(curve),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _initializeUserData() {
@@ -105,11 +136,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final unread =
+        widget.notifications?.value
+            .where((n) => (n['isRead'] as bool? ?? false) == false)
+            .length ??
+        0;
+
     return Container(
       color: ProfilePage._pageBg,
       child: Column(
         children: [
-          const CustomHeader(),
+          CustomHeader(
+            onNotificationTap: _openNotifications,
+            unreadNotificationCount: unread,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -157,14 +197,18 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scale = ResponsiveLayout.scale(context, min: 0.9, max: 1.08);
-    final cardHeight =
-        (MediaQuery.sizeOf(context).height * 0.46).clamp(320.0, 380.0).toDouble();
+    final cardHeight = (MediaQuery.sizeOf(context).height * 0.46)
+        .clamp(320.0, 380.0)
+        .toDouble();
 
     return Container(
       width: double.infinity,
       height: cardHeight,
       margin: EdgeInsets.symmetric(horizontal: 18 * scale),
-      padding: EdgeInsets.symmetric(horizontal: 22 * scale, vertical: 24 * scale),
+      padding: EdgeInsets.symmetric(
+        horizontal: 22 * scale,
+        vertical: 24 * scale,
+      ),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -180,10 +224,7 @@ class _ProfileCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Avatar(
-            photoUrl: profileData.photoUrl,
-            onEditTap: onEditTap,
-          ),
+          _Avatar(photoUrl: profileData.photoUrl, onEditTap: onEditTap),
           SizedBox(height: 14 * scale),
           Text(
             profileData.username,
@@ -216,7 +257,10 @@ class _ProfileCard extends StatelessWidget {
             onTap: onOpenBookmarks,
             borderRadius: BorderRadius.circular(8),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 4 * scale),
+              padding: EdgeInsets.symmetric(
+                horizontal: 8 * scale,
+                vertical: 4 * scale,
+              ),
               child: Text(
                 '$bookmarkCount',
                 style: TextStyle(
@@ -235,31 +279,24 @@ class _ProfileCard extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({
-    required this.photoUrl,
-    required this.onEditTap,
-  });
+  const _Avatar({required this.photoUrl, required this.onEditTap});
 
   final String photoUrl;
   final VoidCallback onEditTap;
 
   Widget _buildAvatarImage() {
     if (photoUrl.trim().isEmpty) {
-      return const Icon(
-        Icons.person,
-        size: 64,
-        color: Color(0xFF09092D),
-      );
+      return const Icon(Icons.person, size: 64, color: Color(0xFF09092D));
     }
 
-      return ClipOval(
-        child: WebSafeNetworkImage(
+    return ClipOval(
+      child: WebSafeNetworkImage(
         imageUrl: photoUrl.trim(),
         width: 98,
         height: 98,
         fit: BoxFit.cover,
       ),
-      );
+    );
   }
 
   @override
@@ -338,9 +375,13 @@ class _EditProfilePageState extends State<_EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController(text: widget.initialData.username);
+    _usernameController = TextEditingController(
+      text: widget.initialData.username,
+    );
     _emailController = TextEditingController(text: widget.initialData.email);
-    _photoUrlController = TextEditingController(text: widget.initialData.photoUrl);
+    _photoUrlController = TextEditingController(
+      text: widget.initialData.photoUrl,
+    );
     _livePhotoUrl = widget.initialData.photoUrl;
     _photoUrlController.addListener(_handlePhotoUrlChanged);
   }
@@ -478,7 +519,11 @@ class _EditProfilePageState extends State<_EditProfilePage> {
       if (!mounted) return;
       Navigator.pop(
         context,
-        _ProfileData(username: username, email: email, photoUrl: normalizedPhoto),
+        _ProfileData(
+          username: username,
+          email: email,
+          photoUrl: normalizedPhoto,
+        ),
       );
       return;
     }
@@ -494,12 +539,16 @@ class _EditProfilePageState extends State<_EditProfilePage> {
     if (ok) {
       Navigator.pop(
         context,
-        _ProfileData(username: username, email: email, photoUrl: normalizedPhoto),
+        _ProfileData(
+          username: username,
+          email: email,
+          photoUrl: normalizedPhoto,
+        ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update profile')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to update profile')));
     }
   }
 
@@ -513,15 +562,13 @@ class _EditProfilePageState extends State<_EditProfilePage> {
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
-        child: const Icon(
-          Icons.person,
-          size: 52,
-          color: Color(0xFF09092D),
-        ),
+        child: const Icon(Icons.person, size: 52, color: Color(0xFF09092D)),
       );
     }
 
-    final previewUrl = _livePhotoUrl.isEmpty ? '' : _normalizeImageUrl(_livePhotoUrl);
+    final previewUrl = _livePhotoUrl.isEmpty
+        ? ''
+        : _normalizeImageUrl(_livePhotoUrl);
     return Container(
       width: 96,
       height: 96,
@@ -532,16 +579,9 @@ class _EditProfilePageState extends State<_EditProfilePage> {
       clipBehavior: Clip.antiAlias,
       child: previewUrl.isEmpty
           ? const Center(
-              child: Icon(
-                Icons.person,
-                size: 52,
-                color: Color(0xFF09092D),
-              ),
+              child: Icon(Icons.person, size: 52, color: Color(0xFF09092D)),
             )
-          : WebSafeNetworkImage(
-              imageUrl: previewUrl,
-              fit: BoxFit.cover,
-            ),
+          : WebSafeNetworkImage(imageUrl: previewUrl, fit: BoxFit.cover),
     );
   }
 
@@ -746,79 +786,86 @@ class _LogoutButtonState extends State<_LogoutButton> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            const Color(0xFF9B3D5B).withValues(alpha: 0.24),
-            const Color(0xFF5A3E86).withValues(alpha: 0.24),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                const Color(0xFF9B3D5B).withValues(alpha: 0.24),
+                const Color(0xFF5A3E86).withValues(alpha: 0.24),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.07),
+                blurRadius: 8,
+                offset: const Offset(0, -1),
+              ),
+            ],
           ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(2),
-          onTap: widget.onTap,
-          onHighlightChanged: (value) {
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 140),
-            opacity: _isPressed ? 0.9 : 1,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(color: const Color(0xFFFF5F5F).withValues(alpha: 0.25)),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.logout,
-                      color: Color(0xFFFF5F5F),
-                      size: 18,
-                    ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(2),
+              onTap: widget.onTap,
+              onHighlightChanged: (value) {
+                setState(() {
+                  _isPressed = value;
+                });
+              },
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 140),
+                opacity: _isPressed ? 0.9 : 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Log out',
-                    style: TextStyle(
-                      color: Color(0xFFFF5F5F),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFFF5F5F,
+                            ).withValues(alpha: 0.25),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.logout,
+                          color: Color(0xFFFF5F5F),
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Log out',
+                        style: TextStyle(
+                          color: Color(0xFFFF5F5F),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
         ),
       ),
     );

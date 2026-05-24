@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../user/user_repository.dart';
 import '../auth/firebase_auth_service.dart';
 
@@ -26,7 +28,7 @@ class NewsItem {
 }
 
 /// BookmarkService now stores bookmarks per-user to avoid cross-account sharing.
-class BookmarkService {
+class BookmarkService extends ChangeNotifier {
   static final BookmarkService _instance = BookmarkService._internal();
 
   factory BookmarkService() {
@@ -71,14 +73,14 @@ class BookmarkService {
       try {
         FirebaseAuthService.instance.addSavedNews(userId: uid, newsId: item.id);
       } catch (_) {}
+      notifyListeners();
     }
   }
 
   void removeBookmark(String id, {String? forUserId}) {
     final uid = forUserId ?? _currentUserId();
     final list = _userBookmarks[uid];
-    if (list == null) return;
-    list.removeWhere((b) => b.id == id);
+    list?.removeWhere((b) => b.id == id);
     // Update local repository and Firestore
     try {
       UserRepository.instance.removeSavedNews(uid, id);
@@ -86,10 +88,14 @@ class BookmarkService {
     try {
       FirebaseAuthService.instance.removeSavedNews(userId: uid, newsId: id);
     } catch (_) {}
+    notifyListeners();
   }
 
   bool isBookmarked(String id, {String? forUserId}) {
     final uid = forUserId ?? _currentUserId();
+    if (UserRepository.instance.isNewsSaved(uid, id)) {
+      return true;
+    }
     final list = _userBookmarks[uid];
     if (list == null) return false;
     return list.any((b) => b.id == id);
@@ -98,5 +104,6 @@ class BookmarkService {
   void clear({String? forUserId}) {
     final uid = forUserId ?? _currentUserId();
     _userBookmarks[uid]?.clear();
+    notifyListeners();
   }
 }

@@ -2,7 +2,7 @@
 class AppStrings {
   // App Info
   static const String appName = 'SportZones';
-  
+
   // Authentication
   static const String login = 'Login';
   static const String register = 'Register';
@@ -11,8 +11,9 @@ class AppStrings {
   static const String rememberMe = 'Remember me';
   static const String forgotPassword = 'Forgot Password?';
   static const String loginButton = 'Login';
-  
+
   // Welcome Text
   static const String welcomeHeading = 'Go ahead and set up\nyour account';
-  static const String welcomeSubtitle = 'Sign in-up to enjoy the bestmanaging experience';
+  static const String welcomeSubtitle =
+      'Sign in-up to enjoy the bestmanaging experience';
 }

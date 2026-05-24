@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../authentication/models/news_model.dart';
+import '../../authentication/models/sport_model.dart';
 import 'latest_news_card.dart';
 
 typedef LatestNewsTap = void Function(SportModel newsItem);
@@ -28,11 +28,7 @@ class LatestNewsSection extends StatelessWidget {
           if (showHeader) ...[
             const Row(
               children: [
-                Icon(
-                  Icons.article_outlined,
-                  color: Colors.white,
-                  size: 22,
-                ),
+                Icon(Icons.article_outlined, color: Colors.white, size: 22),
                 SizedBox(width: 6),
                 Text(
                   'Latest News',

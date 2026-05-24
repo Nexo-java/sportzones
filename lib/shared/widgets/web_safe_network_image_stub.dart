@@ -14,18 +14,19 @@ class WebSafeNetworkImage extends StatelessWidget {
   final BoxFit fit;
   final double? width;
   final double? height;
-  final Widget Function(BuildContext context, Object error, StackTrace? stackTrace)? errorBuilder;
+  final Widget Function(
+    BuildContext context,
+    Object error,
+    StackTrace? stackTrace,
+  )?
+  errorBuilder;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
       height: height,
-      child: Image.network(
-        imageUrl,
-        fit: fit,
-        errorBuilder: errorBuilder,
-      ),
+      child: Image.network(imageUrl, fit: fit, errorBuilder: errorBuilder),
     );
   }
 }

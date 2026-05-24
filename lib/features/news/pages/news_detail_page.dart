@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../home/home_screen.dart';
-import '../../authentication/models/news_model.dart';
+import '../../authentication/models/sport_model.dart';
 import '../../home/pages/add_news_page.dart';
 import '../../notification/pages/notification_page.dart';
 import '../../../services/user/user_repository.dart';
@@ -28,6 +28,7 @@ class NewsDetailPage extends StatefulWidget {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.initialBottomTabIndex = 0,
+    this.notifications,
   }) : createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? createdAt ?? DateTime.now();
 
@@ -41,6 +42,7 @@ class NewsDetailPage extends StatefulWidget {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int initialBottomTabIndex;
+  final ValueNotifier<List<Map<String, dynamic>>>? notifications;
 
   @override
   State<NewsDetailPage> createState() => _NewsDetailPageState();
@@ -65,7 +67,8 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   late final String _itemId;
   late DateTime _now;
   Timer? _relativeTimeTimer;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _likesCountSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _likesCountSubscription;
 
   @override
   void initState() {
@@ -77,25 +80,25 @@ class _NewsDetailPageState extends State<NewsDetailPage>
         .where((text) => text.trim().isNotEmpty)
         .toList(growable: false);
 
-    _itemId = widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
+    _itemId =
+        widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
     _isSaved = _bookmarkService.isBookmarked(_itemId);
     _checkIfLiked();
     _listenToLikeCount();
+    _bookmarkService.addListener(_handleBookmarkChanged);
 
     _actionBannerController = AnimationController(
       duration: const Duration(milliseconds: 820),
       vsync: this,
     );
-    _actionBannerAnimation = Tween<Offset>(
-      begin: const Offset(0, -2.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _actionBannerController,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      ),
-    );
+    _actionBannerAnimation =
+        Tween<Offset>(begin: const Offset(0, -2.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _actionBannerController,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          ),
+        );
 
     _relativeTimeTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
@@ -109,8 +112,16 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   void dispose() {
     _relativeTimeTimer?.cancel();
     _likesCountSubscription?.cancel();
+    _bookmarkService.removeListener(_handleBookmarkChanged);
     _actionBannerController.dispose();
     super.dispose();
+  }
+
+  void _handleBookmarkChanged() {
+    if (!mounted) return;
+    setState(() {
+      _isSaved = _bookmarkService.isBookmarked(_itemId);
+    });
   }
 
   void _listenToLikeCount() {
@@ -120,19 +131,19 @@ class _NewsDetailPageState extends State<NewsDetailPage>
         .where('id_berita', isEqualTo: _itemId)
         .snapshots()
         .listen(
-      (snapshot) {
-        if (!mounted) return;
-        setState(() {
-          _likeCount = snapshot.docs.length;
-        });
-      },
-      onError: (_) {
-        if (!mounted) return;
-        setState(() {
-          _likeCount = 0;
-        });
-      },
-    );
+          (snapshot) {
+            if (!mounted) return;
+            setState(() {
+              _likeCount = snapshot.docs.length;
+            });
+          },
+          onError: (_) {
+            if (!mounted) return;
+            setState(() {
+              _likeCount = 0;
+            });
+          },
+        );
   }
 
   Future<void> _checkIfLiked() async {
@@ -184,7 +195,8 @@ class _NewsDetailPageState extends State<NewsDetailPage>
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 220),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(initialIndex: index),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            HomeScreen(initialIndex: index),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curve = CurvedAnimation(
             parent: animation,
@@ -208,7 +220,8 @@ class _NewsDetailPageState extends State<NewsDetailPage>
   }
 
   Future<void> _onDeletePressed() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (context) {
             return AlertDialog(
@@ -298,7 +311,8 @@ class _NewsDetailPageState extends State<NewsDetailPage>
           ),
           pageTitle: 'Edit News',
           headerTitle: 'Update News Story',
-          headerSubtitle: 'Edit the details below to update this SportZone headline.',
+          headerSubtitle:
+              'Edit the details below to update this SportZone headline.',
           submitButtonText: 'Update News',
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -326,10 +340,10 @@ class _NewsDetailPageState extends State<NewsDetailPage>
     }
 
     try {
-      await _firestore.collection('berita').doc(_itemId).set(
-            updatedNews.toMap(),
-            SetOptions(merge: true),
-          );
+      await _firestore
+          .collection('berita')
+          .doc(_itemId)
+          .set(updatedNews.toMap(), SetOptions(merge: true));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -356,13 +370,20 @@ class _NewsDetailPageState extends State<NewsDetailPage>
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 240),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const NotificationPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
           return FadeTransition(
             opacity: Tween<double>(begin: 0, end: 1).animate(curve),
             child: SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(curve),
               child: child,
             ),
           );
@@ -487,9 +508,18 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                         value: 'edit',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                                            Icon(
+                                              Icons.edit_outlined,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 10),
-                                            Text('Edit', style: TextStyle(color: Colors.white)),
+                                            Text(
+                                              'Edit',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -497,9 +527,18 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                         value: 'delete',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.delete_outline_rounded, color: Color(0xFFD94242), size: 20),
+                                            Icon(
+                                              Icons.delete_outline_rounded,
+                                              color: Color(0xFFD94242),
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 10),
-                                            Text('Delete', style: TextStyle(color: Colors.white)),
+                                            Text(
+                                              'Delete',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -510,26 +549,41 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                               ],
                               InkWell(
                                 onTap: () async {
-                                  final currentUser = UserRepository.instance.getCurrentUser();
+                                  final currentUser = UserRepository.instance
+                                      .getCurrentUser();
                                   if (currentUser == null) {
                                     if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Silakan login terlebih dahulu')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Silakan login terlebih dahulu',
+                                          ),
+                                        ),
                                       );
                                     }
                                     return;
                                   }
 
-                                  final likeDocId = '${currentUser.idUser}_$_itemId';
+                                  final likeDocId =
+                                      '${currentUser.idUser}_$_itemId';
                                   try {
                                     if (_isLoved) {
-                                      await _firestore.collection('likes').doc(likeDocId).delete();
+                                      await _firestore
+                                          .collection('likes')
+                                          .doc(likeDocId)
+                                          .delete();
                                     } else {
-                                      await _firestore.collection('likes').doc(likeDocId).set({
-                                        'id_user': currentUser.idUser,
-                                        'id_berita': _itemId,
-                                        'created_at': FieldValue.serverTimestamp(),
-                                      });
+                                      await _firestore
+                                          .collection('likes')
+                                          .doc(likeDocId)
+                                          .set({
+                                            'id_user': currentUser.idUser,
+                                            'id_berita': _itemId,
+                                            'created_at':
+                                                FieldValue.serverTimestamp(),
+                                          });
                                     }
 
                                     if (mounted) {
@@ -540,8 +594,12 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                   } catch (_) {
                                     if (mounted) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Gagal update like')),
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Gagal update like'),
+                                          ),
                                         );
                                       }
                                     }
@@ -549,12 +607,17 @@ class _NewsDetailPageState extends State<NewsDetailPage>
                                 },
                                 borderRadius: BorderRadius.circular(18),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 4,
+                                  ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        _likeCount > 999 ? '999+' : '$_likeCount',
+                                        _likeCount > 999
+                                            ? '999+'
+                                            : '$_likeCount',
                                         style: const TextStyle(
                                           color: Color(0xFFAAAAAA),
                                           fontSize: 11,
@@ -715,19 +778,12 @@ class _NewsDetailPageState extends State<NewsDetailPage>
       return Container(
         color: const Color(0xFF4A4A6A),
         alignment: Alignment.center,
-        child: const Icon(
-          Icons.image,
-          color: Colors.white30,
-          size: 44,
-        ),
+        child: const Icon(Icons.image, color: Colors.white30, size: 44),
       );
     }
 
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return WebSafeNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.cover,
-      );
+      return WebSafeNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover);
     }
 
     return Image.asset(

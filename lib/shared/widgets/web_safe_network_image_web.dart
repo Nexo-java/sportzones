@@ -19,7 +19,12 @@ class WebSafeNetworkImage extends StatelessWidget {
   final BoxFit fit;
   final double? width;
   final double? height;
-  final Widget Function(BuildContext context, Object error, StackTrace? stackTrace)? errorBuilder;
+  final Widget Function(
+    BuildContext context,
+    Object error,
+    StackTrace? stackTrace,
+  )?
+  errorBuilder;
 
   static final Set<String> _registeredViewTypes = <String>{};
 

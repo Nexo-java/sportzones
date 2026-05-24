@@ -4,12 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/widgets/custom_header.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../services/user/user_repository.dart';
+import '../../../services/bookmark/bookmark_service.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../notification/pages/notification_page.dart';
+import '../../news/pages/news_detail_page.dart';
 import '../../../shared/widgets/web_safe_network_image.dart';
 
 class SavePage extends StatefulWidget {
-  const SavePage({super.key});
+  const SavePage({super.key, this.notifications});
+
+  final ValueNotifier<List<Map<String, dynamic>>>? notifications;
 
   @override
   State<SavePage> createState() => _SavePageState();
@@ -91,20 +95,28 @@ class _SavePageState extends State<SavePage> {
     return '';
   }
 
-  void _deleteBookmark(String newsId) async {
+  Future<void> _deleteBookmark(String newsId) async {
     try {
       final currentUser = UserRepository.instance.getCurrentUser();
-      if (currentUser == null) return;
+      if (currentUser == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Not logged in')));
+        return;
+      }
 
-      // Remove from Firestore
-      await _firestore.collection('users').doc(currentUser.idUser).update({
-        'saved_news': FieldValue.arrayRemove([newsId]),
-      });
+      // Use BookmarkService so all bookmark-aware pages refresh instantly
+      BookmarkService().removeBookmark(newsId, forUserId: currentUser.idUser);
 
-      // Reload bookmarks
+      // Reload bookmarks from updated UserRepository
       await _loadSavedNews();
-    } catch (_) {
-      // Error handling
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
     }
   }
 
@@ -114,13 +126,20 @@ class _SavePageState extends State<SavePage> {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 240),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            NotificationPage(notifications: widget.notifications),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
           return FadeTransition(
             opacity: Tween<double>(begin: 0, end: 1).animate(curve),
             child: SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(curve),
               child: child,
             ),
           );
@@ -131,16 +150,27 @@ class _SavePageState extends State<SavePage> {
 
   @override
   Widget build(BuildContext context) {
+    final unread =
+        widget.notifications?.value
+            .where((n) => (n['isRead'] as bool? ?? false) == false)
+            .length ??
+        0;
+
     return Container(
       color: const Color(0xFF09092D),
       child: Column(
         children: [
-          CustomHeader(onNotificationTap: _openNotifications),
+          CustomHeader(
+            onNotificationTap: _openNotifications,
+            unreadNotificationCount: unread,
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFECF06)),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFFECF06),
+                      ),
                     ),
                   )
                 : _savedNews.isEmpty
@@ -148,16 +178,73 @@ class _SavePageState extends State<SavePage> {
                     message: 'No saved news yet',
                     icon: Icons.bookmark_border,
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: _savedNews.length,
-                    itemBuilder: (context, index) {
-                      final item = _savedNews[index];
-                      return _BookmarkCard(
-                        item: item,
-                        onBookmarkToggle: () => _deleteBookmark(item.id),
-                      );
-                    },
+                : RefreshIndicator(
+                    onRefresh: _loadSavedNews,
+                    color: const Color(0xFFFECF06),
+                    backgroundColor: const Color(0xFF1A1A40),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      itemCount: _savedNews.length,
+                      itemBuilder: (context, index) {
+                        final item = _savedNews[index];
+                        return _BookmarkCard(
+                          item: item,
+                          onBookmarkToggle: () => _deleteBookmark(item.id),
+                          onOpenDetail: () {
+                            Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                transitionDuration: const Duration(
+                                  milliseconds: 220,
+                                ),
+                                reverseTransitionDuration: const Duration(
+                                  milliseconds: 180,
+                                ),
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        NewsDetailPage(
+                                          newsId: item.id,
+                                          imageUrl: item.imageUrl,
+                                          title: item.title,
+                                          description: '',
+                                          date: item.date,
+                                          category: item.category,
+                                          notifications: widget.notifications,
+                                        ),
+                                transitionsBuilder:
+                                    (
+                                      context,
+                                      animation,
+                                      secondaryAnimation,
+                                      child,
+                                    ) {
+                                      final curve = CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeOutCubic,
+                                      );
+                                      return FadeTransition(
+                                        opacity: Tween<double>(
+                                          begin: 0.0,
+                                          end: 1.0,
+                                        ).animate(curve),
+                                        child: SlideTransition(
+                                          position: Tween<Offset>(
+                                            begin: const Offset(0, 0.02),
+                                            end: Offset.zero,
+                                          ).animate(curve),
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
@@ -184,11 +271,13 @@ class _SavedNewsItem {
 
 class _BookmarkCard extends StatefulWidget {
   final _SavedNewsItem item;
-  final VoidCallback onBookmarkToggle;
+  final Future<void> Function() onBookmarkToggle;
+  final VoidCallback? onOpenDetail;
 
   const _BookmarkCard({
     required this.item,
     required this.onBookmarkToggle,
+    this.onOpenDetail,
   });
 
   @override
@@ -197,24 +286,42 @@ class _BookmarkCard extends StatefulWidget {
 
 class _BookmarkCardState extends State<_BookmarkCard> {
   final bool _isSaved = true; // Always true since it's bookmarked
+  bool _isDeleting = false;
 
   Widget _actionIcon({
     required IconData icon,
     required VoidCallback onTap,
     required Color color,
+    required bool isLoading,
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       child: Padding(
         padding: const EdgeInsets.all(4),
-        child: Icon(
-          icon,
-          color: color,
-          size: 24,
-        ),
+        child: isLoading
+            ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              )
+            : Icon(icon, color: color, size: 24),
       ),
     );
+  }
+
+  Future<void> _handleDelete() async {
+    setState(() => _isDeleting = true);
+    try {
+      await widget.onBookmarkToggle();
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
+    }
   }
 
   @override
@@ -224,8 +331,8 @@ class _BookmarkCardState extends State<_BookmarkCard> {
     final imageWidth = (140 * scale).clamp(124.0, 146.0).toDouble();
     final actionWidth = (80 * scale).clamp(70.0, 84.0).toDouble();
 
-    return Material(
-      color: Colors.transparent,
+    return GestureDetector(
+      onTap: widget.onOpenDetail,
       child: Container(
         height: cardHeight,
         margin: EdgeInsets.only(bottom: 12 * scale),
@@ -256,7 +363,10 @@ class _BookmarkCardState extends State<_BookmarkCard> {
                 children: [
                   // Category tag
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10 * scale, vertical: 3 * scale),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10 * scale,
+                      vertical: 3 * scale,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFD9D9D9),
                       borderRadius: BorderRadius.circular(11),
@@ -309,8 +419,11 @@ class _BookmarkCardState extends State<_BookmarkCard> {
                       // BOOKMARK button (always yellow/active)
                       _actionIcon(
                         icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                        color: _isSaved ? const Color(0xFFFECF06) : Colors.white,
-                        onTap: widget.onBookmarkToggle,
+                        color: _isSaved
+                            ? const Color(0xFFFECF06)
+                            : Colors.white,
+                        onTap: _handleDelete,
+                        isLoading: _isDeleting,
                       ),
                     ],
                   ),

@@ -47,7 +47,9 @@ class _PopularNewsCardState extends State<PopularNewsCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
                 child: SizedBox(
                   height: imageHeight,
                   width: double.infinity,
@@ -60,7 +62,7 @@ class _PopularNewsCardState extends State<PopularNewsCard> {
                             size: 38,
                           ),
                         )
-                        : WebSafeNetworkImage(
+                      : WebSafeNetworkImage(
                           imageUrl: imageUrl,
                           fit: BoxFit.cover,
                         ),
@@ -70,7 +72,9 @@ class _PopularNewsCardState extends State<PopularNewsCard> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E4B),
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(5)),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(5),
+                  ),
                 ),
                 padding: const EdgeInsets.fromLTRB(2, 8, 2, 0),
                 child: Column(

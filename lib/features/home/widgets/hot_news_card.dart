@@ -67,27 +67,27 @@ class _HotNewsCardState extends State<HotNewsCard> {
                             ),
                           )
                         : (widget.imageUrl.startsWith('http://') ||
-                                widget.imageUrl.startsWith('https://'))
-                            ? WebSafeNetworkImage(
-                              imageUrl: widget.imageUrl,
-                                fit: BoxFit.cover,
-                              )
-                            : Image.asset(
-                                widget.imageUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: const Color(0xFF4A4A6A),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.image_not_supported,
-                                        color: Colors.white30,
-                                        size: 48,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
+                              widget.imageUrl.startsWith('https://'))
+                        ? WebSafeNetworkImage(
+                            imageUrl: widget.imageUrl,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.asset(
+                            widget.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: const Color(0xFF4A4A6A),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.white30,
+                                    size: 48,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                   ),
 
                   // Gradient Overlay

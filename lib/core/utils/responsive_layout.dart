@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 class ResponsiveLayout {
   const ResponsiveLayout._();
 
-  static double scale(BuildContext context, {double min = 0.88, double max = 1.14}) {
+  static double scale(
+    BuildContext context, {
+    double min = 0.88,
+    double max = 1.14,
+  }) {
     final width = MediaQuery.sizeOf(context).width;
     final scaled = width / 390;
     final safeMin = min.clamp(0.7, 1.0).toDouble();
@@ -25,10 +29,7 @@ class ResponsiveLayout {
 }
 
 class ResponsiveAppFrame extends StatelessWidget {
-  const ResponsiveAppFrame({
-    required this.child,
-    super.key,
-  });
+  const ResponsiveAppFrame({required this.child, super.key});
 
   final Widget child;
 
@@ -51,9 +52,7 @@ class ResponsiveAppFrame extends StatelessWidget {
         : child;
 
     return MediaQuery(
-      data: media.copyWith(
-        textScaler: TextScaler.linear(normalizedScale),
-      ),
+      data: media.copyWith(textScaler: TextScaler.linear(normalizedScale)),
       child: framedChild,
     );
   }

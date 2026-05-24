@@ -1,24 +1,38 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../news/pages/news_detail_page.dart';
 import '../../notification/pages/notification_page.dart';
-import '../../authentication/models/news_model.dart';
+import '../../authentication/models/sport_model.dart';
 import '../widgets/latest_news_card.dart';
 import '../../../shared/widgets/custom_header.dart';
+import '../../../shared/widgets/sports_category_list.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({
-    super.key,
-  });
+  const SearchPage({super.key, this.notifications});
+
+  final ValueNotifier<List<Map<String, dynamic>>>? notifications;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
 }
+
+/// SearchPage
+///
+/// Kegunaan:
+/// - Menyediakan UI pencarian berita dengan dukungan history, kategori,
+///   dan hasil realtime dari koleksi `berita` di Firestore.
+/// - Menormalisasi perbandingan kategori dengan case-insensitive dan trim
+///   untuk menghindari mismatch pada filter kategori.
+///
+/// Catatan:
+/// - Search history disimpan ke `SharedPreferences` dengan batas maksimum
+///   item yang diizinkan (_maxHistory).
 
 class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   static const _bgColor = Color(0xFF09092D);
@@ -40,12 +54,23 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   List<SportModel> _searchResults = const [];
   List<SportModel> _allNews = [];
 
-
-  final List<_SearchCategory> _categories = const [
-    _SearchCategory(name: 'Badminton', icon: Icons.sports_tennis),
-    _SearchCategory(name: 'Soccer', icon: Icons.sports_soccer),
-    _SearchCategory(name: 'Basketball', icon: Icons.sports_basketball),
-    _SearchCategory(name: 'Volly', icon: Icons.sports_volleyball),
+  final List<_SearchCategory> _categories = [
+    _SearchCategory(
+      name: 'Badminton',
+      icon: SportsCategoryList.categories[0].icon!,
+    ),
+    _SearchCategory(
+      name: 'Soccer',
+      icon: SportsCategoryList.categories[1].icon!,
+    ),
+    _SearchCategory(
+      name: 'Basketball',
+      icon: SportsCategoryList.categories[2].icon!,
+    ),
+    _SearchCategory(
+      name: 'Volly',
+      icon: SportsCategoryList.categories[3].icon!,
+    ),
     _SearchCategory(name: 'Tennis', icon: Icons.sports_tennis),
   ];
 
@@ -55,30 +80,39 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _loadSearchHistory();
+    // Mulai langganan realtime ke koleksi 'berita' agar data tersedia untuk search
+    // Data ditampung di _allNews, pencarian dilakukan secara lokal pada list ini.
     _loadNewsFromFirestore();
   }
 
   void _loadNewsFromFirestore() {
-    _newsSubscription = _firestore.collection('berita').snapshots().listen(
-      (snapshot) {
-        if (!mounted) return;
+    // Langganan realtime: setiap perubahan di koleksi 'berita' akan diterima
+    // sebagai snapshot. Kita konversi setiap dokumen menjadi `SportModel`
+    // menggunakan `SportModel.fromJson` sehingga tipe waktu dan field lain
+    // sudah sesuai untuk digunakan di UI dan proses pencarian.
+    _newsSubscription = _firestore
+        .collection('berita')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
 
-        final newsList = snapshot.docs.map((doc) {
-          final data = doc.data();
-          data['id_berita'] = doc.id;
-          return SportModel.fromJson(data);
-        }).toList();
+            final newsList = snapshot.docs.map((doc) {
+              final data = doc.data();
+              data['id_berita'] = doc.id;
+              return SportModel.fromJson(data);
+            }).toList();
 
-        setState(() {
-          _allNews = newsList;
-        });
-      },
-      onError: (e) {
-        if (kDebugMode) {
-          print('Error loading news: $e');
-        }
-      },
-    );
+            setState(() {
+              _allNews = newsList;
+            });
+          },
+          onError: (e) {
+            if (kDebugMode) {
+              print('Error loading news: $e');
+            }
+          },
+        );
   }
 
   @override
@@ -101,7 +135,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   Future<void> _saveSearchHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_historyStorageKey, _searchHistory.take(_maxHistory).toList());
+    await prefs.setStringList(
+      _historyStorageKey,
+      _searchHistory.take(_maxHistory).toList(),
+    );
   }
 
   void _toggleFilter() {
@@ -111,15 +148,55 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   }
 
   Future<void> _onCategoryTap(String categoryName) async {
-    final nextCategory = _selectedCategory == categoryName ? null : categoryName;
+    final nextCategory = _selectedCategory == categoryName
+        ? null
+        : categoryName;
 
     setState(() {
       _selectedCategory = nextCategory;
     });
 
+    // If a category was selected, show results filtered by that category.
+    if (_selectedCategory != null) {
+      await _applyCategoryFilter(_selectedCategory!);
+      return;
+    }
+
+    // If category deselected, reset search view
     if (_isShowingResults && _submittedQuery.isNotEmpty) {
       await _executeSearch(_submittedQuery, saveToHistory: false);
+    } else if (_isShowingResults && _submittedQuery.isEmpty) {
+      _resetToInitialSearchView();
     }
+  }
+
+  Future<void> _applyCategoryFilter(String category) async {
+    setState(() {
+      _submittedQuery = '';
+      _isShowingResults = true;
+      _isSearching = true;
+    });
+
+    _searchFocusNode.unfocus();
+
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!mounted) return;
+
+    final normCategory = category.toLowerCase().trim();
+    // Filter category dilakukan secara eksak pada field kategori.
+    // Karena data sudah distandardisasi di model, kita gunakan lower-case
+    // trim untuk perbandingan yang konsisten.
+    final results = _allNews
+        .where((item) {
+          final itemCat = item.kategori.toLowerCase().trim();
+          return itemCat == normCategory;
+        })
+        .toList(growable: false);
+
+    setState(() {
+      _isSearching = false;
+      _searchResults = results;
+    });
   }
 
   Future<void> _submitSearch(String value) async {
@@ -131,12 +208,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     await _executeSearch(keyword, saveToHistory: true);
   }
 
-  Future<void> _executeSearch(String keyword, {required bool saveToHistory}) async {
+  Future<void> _executeSearch(
+    String keyword, {
+    required bool saveToHistory,
+  }) async {
     final normalized = keyword.trim();
     if (normalized.isEmpty) return;
 
     if (saveToHistory) {
-      _searchHistory.removeWhere((item) => item.toLowerCase() == normalized.toLowerCase());
+      _searchHistory.removeWhere(
+        (item) => item.toLowerCase() == normalized.toLowerCase(),
+      );
       _searchHistory.insert(0, normalized);
       if (_searchHistory.length > _maxHistory) {
         _searchHistory = _searchHistory.take(_maxHistory).toList();
@@ -147,15 +229,26 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     final normalizedQuery = normalized.toLowerCase();
     final selectedCategory = _selectedCategory;
 
-    final results = _allNews.where((item) {
-      final title = item.judul.toLowerCase();
-      final description = item.deskripsi.toLowerCase();
-      final category = item.kategori;
+    // Pencarian dijalankan di memori (_allNews) sehingga respons cepat
+    // tanpa memerlukan query kompleks ke Firestore. Mekanisme:
+    // - normalisasi: semua teks diubah ke lower-case
+    // - pencocokan kata kunci: cek apakah judul atau deskripsi mengandung query
+    // - filter kategori (opsional): jika kategori dipilih, hanya hasil kategori itu
+    final results = _allNews
+        .where((item) {
+          final title = item.judul.toLowerCase();
+          final description = item.deskripsi.toLowerCase();
+          final category = item.kategori.toLowerCase().trim();
 
-      final matchesKeyword = title.contains(normalizedQuery) || description.contains(normalizedQuery);
-      final matchesCategory = selectedCategory == null || selectedCategory == category;
-      return matchesKeyword && matchesCategory;
-    }).toList(growable: false);
+          final matchesKeyword =
+              title.contains(normalizedQuery) ||
+              description.contains(normalizedQuery);
+          final matchesCategory =
+              selectedCategory == null ||
+              selectedCategory.toLowerCase().trim() == category;
+          return matchesKeyword && matchesCategory;
+        })
+        .toList(growable: false);
 
     setState(() {
       _submittedQuery = normalized;
@@ -188,13 +281,20 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 240),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) => const NotificationPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            NotificationPage(notifications: widget.notifications),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
           return FadeTransition(
             opacity: Tween<double>(begin: 0, end: 1).animate(curve),
             child: SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(curve),
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(curve),
               child: child,
             ),
           );
@@ -232,6 +332,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
           createdBy: item.createdBy,
           updatedAt: item.updatedAt,
           initialBottomTabIndex: 1,
+          notifications: widget.notifications,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curve = CurvedAnimation(
@@ -260,11 +361,20 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final unread =
+        widget.notifications?.value
+            .where((n) => (n['isRead'] as bool? ?? false) == false)
+            .length ??
+        0;
+
     return Container(
       color: _bgColor,
       child: Column(
         children: [
-          CustomHeader(onNotificationTap: _openNotifications),
+          CustomHeader(
+            onNotificationTap: _openNotifications,
+            unreadNotificationCount: unread,
+          ),
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -288,7 +398,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                             size: 28,
                           ),
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          constraints: const BoxConstraints(
+                            minWidth: 30,
+                            minHeight: 30,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -298,7 +411,9 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               color: _surfaceColor,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: _isFilterOpen ? _accentColor : Colors.transparent,
+                                color: _isFilterOpen
+                                    ? _accentColor
+                                    : Colors.transparent,
                                 width: 1,
                               ),
                             ),
@@ -327,7 +442,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                   size: 22,
                                 ),
                                 suffixIcon: IconButton(
-                                  onPressed: () => _submitSearch(_searchController.text),
+                                  onPressed: () =>
+                                      _submitSearch(_searchController.text),
                                   splashRadius: 20,
                                   icon: const Icon(
                                     Icons.arrow_forward_rounded,
@@ -350,11 +466,25 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                           borderRadius: BorderRadius.circular(12),
                           child: Padding(
                             padding: const EdgeInsets.all(6),
-                            child: Icon(
-                              Icons.tune,
-                              size: 30,
-                              color: _isFilterOpen ? _accentColor : Colors.white,
-                            ),
+                            child: _isFilterOpen
+                                ? SvgPicture.asset(
+                                    'assets/icons/search_filter_active.svg',
+                                    width: 30,
+                                    height: 30,
+                                    colorFilter: const ColorFilter.mode(
+                                      _accentColor,
+                                      BlendMode.srcIn,
+                                    ),
+                                  )
+                                : SvgPicture.asset(
+                                    'assets/icons/search_filter_inactive.svg',
+                                    width: 30,
+                                    height: 30,
+                                    colorFilter: const ColorFilter.mode(
+                                      Colors.white,
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -365,46 +495,149 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                     curve: Curves.easeInOut,
                     alignment: Alignment.topCenter,
                     child: _isFilterOpen
+                        // Bagian filter kategori: menampilkan chips kategori.
+                        // Memilih kategori akan memanggil _onCategoryTap yang
+                        // mengaplikasikan filter kategori atau membatalkannya.
                         ? Padding(
-                            padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+                            // align chip block with search field horizontal padding
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
                             child: Align(
                               alignment: Alignment.centerLeft,
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _categories.map((category) {
-                                  final isSelected = _selectedCategory == category.name;
-                                  return InkWell(
-                                    onTap: () => _onCategoryTap(category.name),
-                                    borderRadius: BorderRadius.circular(999),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? const Color(0xFFD9D9D9) : Colors.white,
-                                        borderRadius: BorderRadius.circular(999),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                              child: Builder(
+                                builder: (context) {
+                                  final double spacing = 8; // Wrap spacing
+
+                                  return LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      // Keep 3 columns but shrink chips when needed
+                                      const int columns = 3;
+                                      final double totalSpacing =
+                                          spacing * (columns - 1);
+                                      final double baseWidth =
+                                          (constraints.maxWidth -
+                                              totalSpacing) /
+                                          columns;
+                                      final double chipWidthScaled =
+                                          baseWidth * 0.88;
+                                      const double minChipWidth = 145.0;
+                                      final double finalChipWidth =
+                                          chipWidthScaled < minChipWidth
+                                          ? minChipWidth
+                                          : chipWidthScaled;
+
+                                      // Try to constrain chips to align under the search field
+                                      // Estimate left/right offsets caused by the back button and filter icon
+                                      const double leftOffset =
+                                          46.0; // outer padding(8) + back button ~30 + gap 8
+                                      const double rightOffset =
+                                          44.0; // gap 8 + filter icon ~30 + padding
+                                      double chipsContainerWidth =
+                                          constraints.maxWidth -
+                                          leftOffset -
+                                          rightOffset;
+                                      if (chipsContainerWidth <= 0) {
+                                        chipsContainerWidth =
+                                            constraints.maxWidth;
+                                      }
+
+                                      return Row(
                                         children: [
-                                          Text(
-                                            category.name,
-                                            style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 18,
-                                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                          SizedBox(width: leftOffset),
+                                          SizedBox(
+                                            width: chipsContainerWidth,
+                                            child: Wrap(
+                                              alignment: WrapAlignment.start,
+                                              spacing: spacing,
+                                              runSpacing: spacing,
+                                              children: _categories.map((
+                                                category,
+                                              ) {
+                                                final isSelected =
+                                                    _selectedCategory ==
+                                                    category.name;
+                                                return SizedBox(
+                                                  width: finalChipWidth,
+                                                  child: InkWell(
+                                                    onTap: () => _onCategoryTap(
+                                                      category.name,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          999,
+                                                        ),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 6,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: isSelected
+                                                            ? const Color(
+                                                                0xFFFECF06,
+                                                              )
+                                                            : Colors.white,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              999,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: isSelected
+                                                              ? const Color(
+                                                                  0xFFFECF06,
+                                                                )
+                                                              : const Color(
+                                                                  0xFFE6E6E6,
+                                                                ),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            category.name,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            maxLines: 1,
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.black,
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  isSelected
+                                                                  ? FontWeight
+                                                                        .w900
+                                                                  : FontWeight
+                                                                        .w800,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Icon(
+                                                            category.icon,
+                                                            size: 18,
+                                                            color: Colors.black,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList(),
                                             ),
                                           ),
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            category.icon,
-                                            size: 20,
-                                            color: Colors.black,
-                                          ),
                                         ],
-                                      ),
-                                    ),
+                                      );
+                                    },
                                   );
-                                }).toList(),
+                                },
                               ),
                             ),
                           )
@@ -431,12 +664,20 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                         ).animate(animation);
                         return FadeTransition(
                           opacity: animation,
-                          child: SlideTransition(position: offsetAnimation, child: child),
+                          child: SlideTransition(
+                            position: offsetAnimation,
+                            child: child,
+                          ),
                         );
                       },
+                      // Jika sedang menampilkan hasil pencarian, render list hasil
+                      // dan indikator loading saat proses pencarian. Jika tidak,
+                      // tampilkan riwayat pencarian yang disimpan di SharedPreferences.
                       child: _isShowingResults
                           ? Column(
-                              key: ValueKey('search-results-$_submittedQuery-$_selectedCategory'),
+                              key: ValueKey(
+                                'search-results-$_submittedQuery-$_selectedCategory',
+                              ),
                               children: [
                                 if (_isSearching)
                                   const Padding(
@@ -521,7 +762,9 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                         onTap: () => _onHistoryTap(item),
                                         borderRadius: BorderRadius.circular(10),
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
                                           child: Row(
                                             children: [
                                               const Icon(
@@ -534,7 +777,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                                 child: Text(
                                                   item,
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 16,

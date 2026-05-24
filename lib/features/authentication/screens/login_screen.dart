@@ -14,6 +14,25 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/// LoginScreen
+///
+/// Penjelasan singkat kegunaan file ini:
+/// - Menyediakan UI untuk masuk (`Login`) dan pembuatan akun (`Register`).
+/// - Berinteraksi dengan `FirebaseAuthService` untuk melakukan autentikasi.
+/// - Setelah login sukses, `UserRepository` dipakai untuk mengambil profil user
+///   yang sudah disinkronkan di `FirebaseAuthService` dan peran admin di-set
+///   melalui `UserService.instance.setRole(...)`.
+/// - Animasi banner sukses/galat ditangani oleh `_successBannerController`.
+///
+/// Catatan implementasi:
+/// - `rememberMe` hanya menyimpan pilihan checkbox pada UI saat ini;
+///   penyimpanan persistent (SharedPreferences) tidak diimplementasikan di sini.
+/// - Handler `_handleLoginPressed` dan `_handleRegisterPressed` sudah melakukan
+///   validasi dasar, menampilkan `SnackBar` untuk error, dan mengarahkan
+///   pengguna ke `HomeScreen` setelah login berhasil.
+/// - Jika butuh menambahkan role atau metadata pengguna, lakukan di
+///   `FirebaseAuthService.registerWithEmail` atau pada update profil di Firestore.
+
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   late AnimationController _controller;
@@ -24,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<Offset> _successBannerSlideAnimation;
   late Animation<Offset> _loginExitSlideAnimation;
   late Animation<double> _loginExitFadeAnimation;
-  
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -49,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -67,47 +86,37 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     // Banner slides in from above with easing
-    _successBannerSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1.5),  // Start above screen
-      end: Offset.zero,              // End at final position
-    ).animate(
-      CurvedAnimation(
-        parent: _successBannerController,
-        curve: Curves.easeOut,  // Smooth deceleration
-      ),
-    );
+    _successBannerSlideAnimation =
+        Tween<Offset>(
+          begin: const Offset(0, -1.5), // Start above screen
+          end: Offset.zero, // End at final position
+        ).animate(
+          CurvedAnimation(
+            parent: _successBannerController,
+            curve: Curves.easeOut, // Smooth deceleration
+          ),
+        );
 
     _contentFadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeIn,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _loginExitController = AnimationController(
       duration: const Duration(milliseconds: 620),
       vsync: this,
     );
 
-    _loginExitSlideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(0, 1.0),
-    ).animate(
-      CurvedAnimation(
-        parent: _loginExitController,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _loginExitSlideAnimation =
+        Tween<Offset>(begin: Offset.zero, end: const Offset(0, 1.0)).animate(
+          CurvedAnimation(
+            parent: _loginExitController,
+            curve: Curves.easeInOut,
+          ),
+        );
 
-    _loginExitFadeAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.94,
-    ).animate(
-      CurvedAnimation(
-        parent: _loginExitController,
-        curve: Curves.easeInOut,
-      ),
+    _loginExitFadeAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _loginExitController, curve: Curves.easeInOut),
     );
 
     _controller.forward();
@@ -138,16 +147,16 @@ class _LoginScreenState extends State<LoginScreen>
     final confirmPassword = _confirmPasswordController.text.trim();
 
     if (username.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua field harus diisi')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Semua field harus diisi')));
       return;
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password tidak sesuai')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Password tidak sesuai')));
       return;
     }
 
@@ -164,11 +173,12 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
 
       // Register with Firebase
-      final registerError = await FirebaseAuthService.instance.registerWithEmail(
-        email: email,
-        password: password,
-        username: username,
-      );
+      final registerError = await FirebaseAuthService.instance
+          .registerWithEmail(
+            email: email,
+            password: password,
+            username: username,
+          );
 
       if (registerError != null) {
         if (!mounted) return;
@@ -179,9 +189,9 @@ class _LoginScreenState extends State<LoginScreen>
           _successBannerText = 'Login Berhasil';
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(registerError)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(registerError)));
         return;
       }
 
@@ -278,11 +288,7 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       await Navigator.of(context).pushReplacement(
-        _createHomeRevealTransition(
-          const HomeScreen(
-            animateOnEntry: true,
-          ),
-        ),
+        _createHomeRevealTransition(const HomeScreen(animateOnEntry: true)),
       );
     } catch (_) {
       if (!mounted) return;
@@ -302,10 +308,7 @@ class _LoginScreenState extends State<LoginScreen>
       reverseTransitionDuration: const Duration(milliseconds: 100),
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return ColoredBox(
-          color: const Color(0xFF09092D),
-          child: child,
-        );
+        return ColoredBox(color: const Color(0xFF09092D), child: child);
       },
     );
   }
@@ -330,10 +333,7 @@ class _LoginScreenState extends State<LoginScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF09092D),
-                      Color(0xFF09092D),
-                    ],
+                    colors: [Color(0xFF09092D), Color(0xFF09092D)],
                   ),
                 ),
                 child: SafeArea(
@@ -344,10 +344,10 @@ class _LoginScreenState extends State<LoginScreen>
                       final topRatio = compact ? 0.19 : 0.33;
                       final headerRatio = compact ? 0.075 : 0.17;
                       final cardTop = (constraints.maxHeight * topRatio)
-                        .clamp(155.0, 290.0)
+                          .clamp(155.0, 290.0)
                           .toDouble();
                       final headerTop = (constraints.maxHeight * headerRatio)
-                        .clamp(92.0, 158.0)
+                          .clamp(92.0, 158.0)
                           .toDouble();
 
                       return Column(
@@ -387,38 +387,59 @@ class _LoginScreenState extends State<LoginScreen>
                                   padding: EdgeInsets.only(bottom: bottomInset),
                                   child: Center(
                                     child: ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 600),
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 600,
+                                      ),
                                       child: Padding(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: 24.0,
-                                            vertical: compact ? 12.0 : 28.0,
+                                          vertical: compact ? 12.0 : 28.0,
                                         ),
                                         child: Column(
                                           children: [
                                             _buildTabBar(),
-                                              SizedBox(height: compact ? 8 : 28),
+                                            SizedBox(height: compact ? 8 : 28),
                                             Expanded(
                                               child: AnimatedSwitcher(
-                                                duration: const Duration(milliseconds: 250),
-                                                transitionBuilder: (child, animation) =>
-                                                    FadeTransition(opacity: animation, child: child),
-                                                layoutBuilder: (currentChild, previousChildren) {
-                                                  return Stack(
-                                                    alignment: Alignment.topCenter,
-                                                    children: [
-                                                      ...previousChildren,
-                                                      if (currentChild != null) currentChild,
-                                                    ],
-                                                  );
-                                                },
+                                                duration: const Duration(
+                                                  milliseconds: 250,
+                                                ),
+                                                transitionBuilder:
+                                                    (child, animation) =>
+                                                        FadeTransition(
+                                                          opacity: animation,
+                                                          child: child,
+                                                        ),
+                                                layoutBuilder:
+                                                    (
+                                                      currentChild,
+                                                      previousChildren,
+                                                    ) {
+                                                      return Stack(
+                                                        alignment:
+                                                            Alignment.topCenter,
+                                                        children: [
+                                                          ...previousChildren,
+                                                          if (currentChild !=
+                                                              null)
+                                                            currentChild,
+                                                        ],
+                                                      );
+                                                    },
                                                 child: _isLogin
                                                     ? KeyedSubtree(
-                                                        key: const ValueKey('login'),
-                                                        child: _buildLoginForm(),
+                                                        key: const ValueKey(
+                                                          'login',
+                                                        ),
+                                                        child:
+                                                            _buildLoginForm(),
                                                       )
                                                     : KeyedSubtree(
-                                                        key: const ValueKey('register'),
-                                                        child: _buildRegisterForm(),
+                                                        key: const ValueKey(
+                                                          'register',
+                                                        ),
+                                                        child:
+                                                            _buildRegisterForm(),
                                                       ),
                                               ),
                                             ),
@@ -516,8 +537,8 @@ class _LoginScreenState extends State<LoginScreen>
           style: TextStyle(
             color: Colors.grey.shade400,
             fontSize: subtitleSize * scale,
-              height: 1.5,
-              letterSpacing: 1.0 * scale,
+            height: 1.5,
+            letterSpacing: 1.0 * scale,
           ),
         ),
       ],
@@ -553,10 +574,7 @@ class _LoginScreenState extends State<LoginScreen>
                       fontSize: 19,
                       fontWeight: FontWeight.bold,
                     ),
-                    child: Text(
-                      'Login',
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('Login', textAlign: TextAlign.center),
                   ),
                 ),
               ),
@@ -578,10 +596,7 @@ class _LoginScreenState extends State<LoginScreen>
                       fontSize: 19,
                       fontWeight: FontWeight.bold,
                     ),
-                    child: Text(
-                      'Register',
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('Register', textAlign: TextAlign.center),
                   ),
                 ),
               ),
@@ -602,7 +617,9 @@ class _LoginScreenState extends State<LoginScreen>
                     AnimatedPositioned(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeInOut,
-                      left: _isLogin ? (halfWidth - 45) / 2 : halfWidth + (halfWidth - 70) / 2,
+                      left: _isLogin
+                          ? (halfWidth - 45) / 2
+                          : halfWidth + (halfWidth - 70) / 2,
                       child: Container(
                         height: 3,
                         width: _isLogin ? 45 : 70,
@@ -622,7 +639,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginForm() { // 
+  Widget _buildLoginForm() {
+    //
     final screenHeight = MediaQuery.sizeOf(context).height;
     final formItemWidth = (MediaQuery.of(context).size.width * 0.86)
         .clamp(220.0, 310.0)
@@ -633,10 +651,7 @@ class _LoginScreenState extends State<LoginScreen>
     final fieldPaddingVertical = compact ? 12.0 : 16.0;
 
     Widget formItem(Widget child) {
-      return SizedBox(
-        width: formItemWidth,
-        child: child,
-      );
+      return SizedBox(width: formItemWidth, child: child);
     }
 
     return Column(
@@ -736,20 +751,22 @@ class _LoginScreenState extends State<LoginScreen>
                           _rememberMe = value ?? false;
                         });
                       },
-                      side: const BorderSide(color: _formBorderColor, width: 1.6),
+                      side: const BorderSide(
+                        color: _formBorderColor,
+                        width: 1.6,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),
+                      // checked box: use previous background color with white checkmark
                       activeColor: const Color(0xFF09092D),
+                      checkColor: Colors.white,
                     ),
                   ),
                   const SizedBox(width: 8),
                   const Text(
                     'Remember me',
-                    style: TextStyle(
-                      color: _formMutedTextColor,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: _formMutedTextColor, fontSize: 12),
                   ),
                 ],
               ),
@@ -764,66 +781,66 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 child: const Text(
                   'Forgot password?',
-                  style: TextStyle(
-                    color: Color(0xFF17153C),
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Color(0xFF17153C), fontSize: 14),
                 ),
               ),
             ],
           ),
         ),
         SizedBox(height: compact ? 36 : 52),
-          formItem(
-            ElevatedButton(
-              onPressed: _isLoginProcessing ? null : _handleLoginPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF09092D),
-                disabledBackgroundColor: const Color(0xFF09092D).withValues(alpha: 0.6),
-                minimumSize: const Size(double.infinity, 66),
-                padding: const EdgeInsets.symmetric(vertical: 21),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
+        formItem(
+          ElevatedButton(
+            onPressed: _isLoginProcessing ? null : _handleLoginPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF09092D),
+              disabledBackgroundColor: const Color(
+                0xFF09092D,
+              ).withValues(alpha: 0.6),
+              minimumSize: const Size(double.infinity, 66),
+              padding: const EdgeInsets.symmetric(vertical: 21),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: _isLoginProcessing
-                ? SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withValues(alpha: 0.8),
-                    ),
-                    strokeWidth: 2.5,
-                  ),
-                )
-                : const Text(
-                  'Login',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+              elevation: 0,
             ),
+            child: _isLoginProcessing
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.8),
+                      ),
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Text(
+                    'Login',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
           ),
+        ),
         SizedBox(height: compact ? 2 : 6),
       ],
     );
   }
 
-  Widget _buildRegisterForm() { 
+  Widget _buildRegisterForm() {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final formItemWidth = (MediaQuery.of(context).size.width * 0.86)
-      .clamp(220.0, 310.0)
+        .clamp(220.0, 310.0)
         .toDouble();
     final compact = screenHeight < 760;
     final fieldGap = compact ? 9.0 : 16.0;
     final fieldPaddingVertical = compact ? 12.0 : 16.0;
 
-    Widget formItem(Widget child) => SizedBox(width: formItemWidth, child: child);
+    Widget formItem(Widget child) =>
+        SizedBox(width: formItemWidth, child: child);
 
     Widget inputField({
       required TextEditingController controller,
@@ -900,7 +917,8 @@ class _LoginScreenState extends State<LoginScreen>
           hint: 'Enter Your Password',
           prefixIconData: Icons.lock_outline,
           obscure: _obscureRegPassword,
-          onToggleObscure: () => setState(() => _obscureRegPassword = !_obscureRegPassword),
+          onToggleObscure: () =>
+              setState(() => _obscureRegPassword = !_obscureRegPassword),
         ),
         SizedBox(height: fieldGap),
         inputField(
@@ -908,15 +926,19 @@ class _LoginScreenState extends State<LoginScreen>
           hint: 'Confirm Password',
           prefixIconData: Icons.lock_outline,
           obscure: _obscureConfirmPassword,
-          onToggleObscure: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+          onToggleObscure: () => setState(
+            () => _obscureConfirmPassword = !_obscureConfirmPassword,
+          ),
         ),
-                SizedBox(height: compact ? 36 : 52),
+        SizedBox(height: compact ? 36 : 52),
         formItem(
           ElevatedButton(
             onPressed: _isLoginProcessing ? null : _handleRegisterPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF09092D),
-              disabledBackgroundColor: const Color(0xFF09092D).withValues(alpha: 0.6),
+              disabledBackgroundColor: const Color(
+                0xFF09092D,
+              ).withValues(alpha: 0.6),
               minimumSize: const Size(double.infinity, 66),
               padding: const EdgeInsets.symmetric(vertical: 21),
               shape: RoundedRectangleBorder(
@@ -925,25 +947,25 @@ class _LoginScreenState extends State<LoginScreen>
               elevation: 0,
             ),
             child: _isLoginProcessing
-              ? SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.white.withValues(alpha: 0.8),
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.8),
+                      ),
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Text(
+                    'Register',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  strokeWidth: 2.5,
-                ),
-              )
-              : const Text(
-                'Register',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
           ),
         ),
         SizedBox(height: compact ? 2 : 6),

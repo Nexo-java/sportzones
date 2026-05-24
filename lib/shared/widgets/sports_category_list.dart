@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 class SportsCategory {
-  const SportsCategory({required this.name, required this.icon});
+  const SportsCategory({required this.name, this.icon, this.svgAsset});
 
   final String name;
-  final IconData icon;
+  final IconData? icon;
+  final String? svgAsset;
 }
 
 class SportsCategoryList extends StatefulWidget {
@@ -118,17 +121,42 @@ class _SportsCategoryListState extends State<SportsCategoryList> {
                           style: TextStyle(
                             color: Colors.black,
                             fontSize: 16,
-                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                            fontWeight: isSelected
+                                ? FontWeight.w900
+                                : FontWeight.w700,
                             height: 1,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(
-                        category.icon,
-                        size: 28,
-                        color: Colors.black,
-                      ),
+                      if (category.svgAsset != null)
+                        FutureBuilder<bool>(
+                          future: rootBundle
+                              .load(category.svgAsset!)
+                              .then((_) => true)
+                              .catchError((_) => false),
+                          builder: (context, snap) {
+                            final ok = snap.hasData && snap.data == true;
+                            if (ok) {
+                              return SvgPicture.asset(
+                                category.svgAsset!,
+                                width: 28,
+                                height: 28,
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.black,
+                                  BlendMode.srcIn,
+                                ),
+                              );
+                            }
+                            return Icon(
+                              category.icon,
+                              size: 28,
+                              color: Colors.black,
+                            );
+                          },
+                        )
+                      else
+                        Icon(category.icon, size: 28, color: Colors.black),
                     ],
                   ),
                 ),

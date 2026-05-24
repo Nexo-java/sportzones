@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Reusable success notification banner with smooth slide animation
-/// 
+///
 /// Slides down from above the header with a green background, white border,
 /// and a check icon. Designed to provide visual feedback for successful actions.
 class TopSuccessBanner extends StatelessWidget {
@@ -40,10 +40,7 @@ class TopSuccessBanner extends StatelessWidget {
             decoration: BoxDecoration(
               color: backgroundColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white,
-                width: 2.5,
-              ),
+              border: Border.all(color: Colors.white, width: 2.5),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF000000).withValues(alpha: 0.15),

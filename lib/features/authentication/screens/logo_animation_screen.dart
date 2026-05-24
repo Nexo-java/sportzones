@@ -25,10 +25,7 @@ class _LogoAnimationScreenState extends State<LogoAnimationScreen>
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _startSequence();
   }
@@ -62,10 +59,7 @@ class _LogoAnimationScreenState extends State<LogoAnimationScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF09092D),
       body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: _buildLogo(),
-        ),
+        child: FadeTransition(opacity: _fadeAnimation, child: _buildLogo()),
       ),
     );
   }

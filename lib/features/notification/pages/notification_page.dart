@@ -9,6 +9,18 @@ class NotificationPage extends StatefulWidget {
   State<NotificationPage> createState() => _NotificationPageState();
 }
 
+/// NotificationPage
+///
+/// Kegunaan:
+/// - Menampilkan daftar notifikasi internal yang dikirim dari `HomeScreen`
+///   ketika ada berita baru.
+/// - Mendukung menandai semua sebagai dibaca, menghapus notifikasi, dan
+///   membuka detail berita terkait.
+///
+/// Catatan:
+/// - Notifikasi disimpan sementara di `ValueNotifier` yang diteruskan dari
+///   `HomeScreen`; tidak ada persistensi ke Firestore pada implementasi saat ini.
+
 class _NotificationPageState extends State<NotificationPage>
     with SingleTickerProviderStateMixin {
   static const _bg = Color(0xFF09092D);
@@ -24,12 +36,19 @@ class _NotificationPageState extends State<NotificationPage>
   void initState() {
     super.initState();
     _now = DateTime.now();
-    _entryController =
-        AnimationController(duration: const Duration(milliseconds: 280), vsync: this);
-    final curve = CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic);
+    _entryController = AnimationController(
+      duration: const Duration(milliseconds: 280),
+      vsync: this,
+    );
+    final curve = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutCubic,
+    );
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(curve);
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(curve);
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.03),
+      end: Offset.zero,
+    ).animate(curve);
     _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
       setState(() {
@@ -50,8 +69,9 @@ class _NotificationPageState extends State<NotificationPage>
 
   void _markAllAsRead() {
     if (widget.notifications == null) return;
-    final updated =
-        widget.notifications!.value.map((item) => {...item, 'isRead': true}).toList();
+    final updated = widget.notifications!.value
+        .map((item) => {...item, 'isRead': true})
+        .toList();
     widget.notifications!.value = updated;
   }
 
@@ -60,8 +80,9 @@ class _NotificationPageState extends State<NotificationPage>
     setState(() => _deletingIds.add(itemId));
     await Future<void>.delayed(const Duration(milliseconds: 220));
     if (!mounted) return;
-    widget.notifications!.value =
-        widget.notifications!.value.where((item) => item['id'] != itemId).toList();
+    widget.notifications!.value = widget.notifications!.value
+        .where((item) => item['id'] != itemId)
+        .toList();
     if (!mounted) return;
     setState(() => _deletingIds.remove(itemId));
   }
@@ -88,13 +109,17 @@ class _NotificationPageState extends State<NotificationPage>
           updatedAt: item['timestamp'] as DateTime,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          final curve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
           return FadeTransition(
             opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curve),
             child: SlideTransition(
-              position:
-                  Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero)
-                      .animate(curve),
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curve),
               child: child,
             ),
           );
@@ -165,7 +190,9 @@ class _NotificationPageState extends State<NotificationPage>
                               itemBuilder: (_, index) {
                                 final item = notifications[index];
                                 final itemId = item['id'] as String;
-                                final isRemoving = _deletingIds.contains(itemId);
+                                final isRemoving = _deletingIds.contains(
+                                  itemId,
+                                );
                                 return AnimatedOpacity(
                                   duration: const Duration(milliseconds: 180),
                                   opacity: isRemoving ? 0 : 1,
@@ -248,9 +275,7 @@ class _DividerLine extends StatelessWidget {
     return const SizedBox(
       height: 1,
       width: double.infinity,
-      child: DecoratedBox(
-        decoration: BoxDecoration(color: Color(0xFF1A1A40)),
-      ),
+      child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF1A1A40))),
     );
   }
 }
@@ -284,6 +309,8 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRead = item['isRead'] as bool? ?? false;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -298,7 +325,7 @@ class _NotificationCard extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              if (!(item['isRead'] as bool))
+              if (!isRead)
                 Positioned(
                   left: 0,
                   top: 0,
@@ -314,8 +341,7 @@ class _NotificationCard extends StatelessWidget {
                   ),
                 ),
               Padding(
-                padding:
-                    EdgeInsets.only(left: (item['isRead'] as bool) ? 0 : 5),
+                padding: EdgeInsets.only(left: isRead ? 0 : 5),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
                   child: Row(
@@ -329,11 +355,12 @@ class _NotificationCard extends StatelessWidget {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 4),
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius:
-                                        BorderRadius.circular(999),
+                                    borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
                                     item['category'] as String,
@@ -348,8 +375,9 @@ class _NotificationCard extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Text(
                                   _formatRelativeTime(
-                                      item['timestamp'] as DateTime,
-                                      now),
+                                    item['timestamp'] as DateTime,
+                                    now,
+                                  ),
                                   style: const TextStyle(
                                     color: Color(0xFFAAAAAA),
                                     fontSize: 11,

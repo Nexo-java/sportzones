@@ -39,9 +39,24 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
   void initState() {
     super.initState();
     // Create a unique ID based on title and date
-    _itemId = widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
+    _itemId =
+        widget.newsId ?? '${widget.title}_${widget.date}'.hashCode.toString();
     _isSaved = _bookmarkService.isBookmarked(_itemId);
     _checkIfLiked();
+    _bookmarkService.addListener(_handleBookmarkChanged);
+  }
+
+  @override
+  void dispose() {
+    _bookmarkService.removeListener(_handleBookmarkChanged);
+    super.dispose();
+  }
+
+  void _handleBookmarkChanged() {
+    if (!mounted) return;
+    setState(() {
+      _isSaved = _bookmarkService.isBookmarked(_itemId);
+    });
   }
 
   Future<void> _checkIfLiked() async {
@@ -75,11 +90,7 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(4),
-        child: Icon(
-          icon,
-          color: color,
-          size: 24,
-        ),
+        child: Icon(icon, color: color, size: 24),
       ),
     );
   }
@@ -132,8 +143,8 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                 borderRadius: BorderRadius.circular(14),
                 child: SizedBox(
                   width: imageWidth,
-                    child: WebSafeNetworkImage(
-                      imageUrl: widget.imageUrl,
+                  child: WebSafeNetworkImage(
+                    imageUrl: widget.imageUrl,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -144,7 +155,10 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10 * scale, vertical: 3 * scale),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10 * scale,
+                        vertical: 3 * scale,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFD9D9D9),
                         borderRadius: BorderRadius.circular(11),
@@ -192,14 +206,23 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         _actionIcon(
-                          icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                          color: _isLiked ? const Color(0xFFFF5F5F) : Colors.white,
+                          icon: _isLiked
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: _isLiked
+                              ? const Color(0xFFFF5F5F)
+                              : Colors.white,
                           onTap: () async {
-                            final currentUser = UserRepository.instance.getCurrentUser();
+                            final currentUser = UserRepository.instance
+                                .getCurrentUser();
                             if (currentUser == null) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Silakan login terlebih dahulu')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Silakan login terlebih dahulu',
+                                    ),
+                                  ),
                                 );
                               }
                               return;
@@ -208,13 +231,20 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                             final likeDocId = '${currentUser.idUser}_$_itemId';
                             try {
                               if (_isLiked) {
-                                await _firestore.collection('likes').doc(likeDocId).delete();
+                                await _firestore
+                                    .collection('likes')
+                                    .doc(likeDocId)
+                                    .delete();
                               } else {
-                                await _firestore.collection('likes').doc(likeDocId).set({
-                                  'id_user': currentUser.idUser,
-                                  'id_berita': _itemId,
-                                  'created_at': FieldValue.serverTimestamp(),
-                                });
+                                await _firestore
+                                    .collection('likes')
+                                    .doc(likeDocId)
+                                    .set({
+                                      'id_user': currentUser.idUser,
+                                      'id_berita': _itemId,
+                                      'created_at':
+                                          FieldValue.serverTimestamp(),
+                                    });
                               }
 
                               if (mounted) {
@@ -226,7 +256,9 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                               if (mounted) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Gagal update like')),
+                                    const SnackBar(
+                                      content: Text('Gagal update like'),
+                                    ),
                                   );
                                 }
                               }
@@ -235,8 +267,12 @@ class _LatestNewsCardState extends State<LatestNewsCard> {
                         ),
                         SizedBox(width: 10 * scale),
                         _actionIcon(
-                          icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          color: _isSaved ? const Color(0xFFFECF06) : Colors.white,
+                          icon: _isSaved
+                              ? Icons.bookmark
+                              : Icons.bookmark_border,
+                          color: _isSaved
+                              ? const Color(0xFFFECF06)
+                              : Colors.white,
                           onTap: _toggleBookmark,
                         ),
                       ],

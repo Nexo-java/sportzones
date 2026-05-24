@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/responsive_layout.dart';
-import '../../authentication/models/news_model.dart';
+import '../../authentication/models/sport_model.dart';
 
 import 'popular_news_card.dart';
 
@@ -29,11 +29,7 @@ class PopularNewsSection extends StatelessWidget {
           padding: EdgeInsets.only(left: _horizontalInset),
           child: Row(
             children: [
-              Icon(
-                Icons.whatshot,
-                color: Colors.white,
-                size: 22,
-              ),
+              Icon(Icons.whatshot, color: Colors.white, size: 22),
               SizedBox(width: 6),
               Text(
                 'Popular News',
@@ -62,10 +58,14 @@ class PopularNewsSection extends StatelessWidget {
                 )
               : ListView.separated(
                   clipBehavior: Clip.none,
-                  padding: const EdgeInsets.only(left: _horizontalInset, right: 6),
+                  padding: const EdgeInsets.only(
+                    left: _horizontalInset,
+                    right: 6,
+                  ),
                   scrollDirection: Axis.horizontal,
                   itemCount: newsItems.length,
-                  separatorBuilder: (context, index) => SizedBox(width: 12 * scale),
+                  separatorBuilder: (context, index) =>
+                      SizedBox(width: 12 * scale),
                   itemBuilder: (context, index) {
                     final item = newsItems[index];
                     return PopularNewsCard(

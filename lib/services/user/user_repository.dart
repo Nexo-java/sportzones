@@ -29,10 +29,7 @@ class UserRepository {
       password: 'admin123',
       email: 'admin@sportzones.com',
       role: 'admin',
-      imgUrl: {
-        'url': 'https://via.placeholder.com/150',
-        'source': 'seed',
-      },
+      imgUrl: {'url': 'https://via.placeholder.com/150', 'source': 'seed'},
     );
 
     final regularUser = UserModel.tambahData(
@@ -41,10 +38,7 @@ class UserRepository {
       password: 'user123',
       email: 'hendriktimang@gmail.com',
       role: 'user',
-      imgUrl: {
-        'url': 'https://via.placeholder.com/150',
-        'source': 'seed',
-      },
+      imgUrl: {'url': 'https://via.placeholder.com/150', 'source': 'seed'},
     );
 
     _users[adminUser.idUser] = adminUser;
@@ -89,10 +83,7 @@ class UserRepository {
       email: email,
       imgUrl: imgUrl == null
           ? null
-          : {
-              'url': imgUrl,
-              'source': 'repository_update',
-            },
+          : {'url': imgUrl, 'source': 'repository_update'},
     );
 
     _users[userId] = updatedUser;

@@ -5,12 +5,7 @@ class BaseResponse<T> {
   final T? data;
   final Map<String, dynamic>? errors;
 
-  BaseResponse({
-    required this.success,
-    this.message,
-    this.data,
-    this.errors,
-  });
+  BaseResponse({required this.success, this.message, this.data, this.errors});
 
   factory BaseResponse.fromMap(
     Map<String, dynamic> map,
